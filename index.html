@@ -162,10 +162,13 @@
                     showMainContent();
                 } else {
                     const data = await response.json();
-                    alert(data.message);
+                    // Menampilkan error lebih detail agar kita tahu masalahnya
+                    const detailError = data.error ? `\nDetail: ${data.error}` : '';
+                    const tip = data.tip ? `\nTip: ${data.tip}` : '';
+                    alert(`${data.message}${detailError}${tip}`);
                 }
             } catch (error) {
-                alert('Terjadi kesalahan koneksi');
+                alert('Terjadi kesalahan koneksi ke server');
             }
         });
 
