@@ -13,20 +13,26 @@ const app = express();
 mongoose.set('bufferCommands', false);
 
 // Database Connection (Singleton for Vercel)
-let isConnected = false;
 const connectDB = async () => {
-    if (isConnected) return;
+    // Jika sudah terkoneksi (readyState 1), langsung return
+    if (mongoose.connection.readyState === 1) return;
+
+    // Jika sedang mencoba koneksi (readyState 2), tunggu sebentar
+    if (mongoose.connection.readyState === 2) {
+        console.log('Menunggu koneksi yang sedang berjalan...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return connectDB();
+    }
+
     try {
         const uri = process.env.MONGODB_URI;
         if (!uri) throw new Error('Variabel MONGODB_URI belum diisi di Vercel!');
         
-        console.log('Memulai koneksi ke MongoDB...');
+        console.log('Memulai koneksi baru ke MongoDB...');
         await mongoose.connect(uri, {
-            serverSelectionTimeoutMS: 10000, // Tunggu maks 10 detik
+            serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
         });
-        
-        isConnected = true;
         console.log('Koneksi Berhasil!');
     } catch (err) {
         console.error('Gagal konek MongoDB:', err.message);
@@ -59,9 +65,6 @@ const accountSchema = new mongoose.Schema({
     hargaJual: Number,
     keterangan: { type: String, default: 'Ready' }
 });
-
-// Disable buffering so it fails fast instead of waiting 10s
-accountSchema.set('bufferCommands', false);
 
 const Account = mongoose.models.Account || mongoose.model('Account', accountSchema);
 
