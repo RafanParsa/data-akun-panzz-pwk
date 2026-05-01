@@ -104,51 +104,78 @@ app.post('/api/logout', (req, res) => {
 
 // Account APIs
 app.get('/api/accounts', checkAuth, async (req, res) => {
-    const data = await Account.find().sort({ no: 1 });
-    res.json(data.map(acc => ({
-        "No": acc.no,
-        "Kode Akun": acc.kodeAkun,
-        "Gmail": acc.gmail,
-        "Password Gmail": acc.passwordGmail,
-        "Password ML": acc.passwordML,
-        "Harga Beli": acc.hargaBeli,
-        "Harga Jual": acc.hargaJual,
-        "Keterangan": acc.keterangan
-    })));
+    try {
+        const data = await Account.find().sort({ no: 1 });
+        res.json(data.map(acc => ({
+            "No": acc.no,
+            "Kode Akun": acc.kodeAkun,
+            "Gmail": acc.gmail,
+            "Password Gmail": acc.passwordGmail,
+            "Password ML": acc.passwordML,
+            "Harga Beli": acc.hargaBeli,
+            "Harga Jual": acc.hargaJual,
+            "Keterangan": acc.keterangan
+        })));
+    } catch (error) {
+        res.status(500).json({ message: 'Gagal mengambil data: ' + error.message });
+    }
 });
 
 app.post('/api/accounts', checkAuth, async (req, res) => {
-    const body = req.body;
-    if (!body.No) {
-        const last = await Account.findOne().sort({ no: -1 });
-        body.No = (last ? last.no : 0) + 1;
+    try {
+        const body = req.body;
+        
+        // Cek apakah Kode Akun sudah ada
+        const existing = await Account.findOne({ kodeAkun: body["Kode Akun"] });
+        if (existing) {
+            return res.status(400).json({ message: 'Kode Akun sudah terdaftar!' });
+        }
+
+        if (!body.No) {
+            const last = await Account.findOne().sort({ no: -1 });
+            body.No = (last ? last.no : 0) + 1;
+        }
+        
+        const newAcc = new Account({
+            no: body.No,
+            kodeAkun: body["Kode Akun"],
+            gmail: body.Gmail,
+            passwordGmail: body["Password Gmail"],
+            passwordML: body["Password ML"],
+            hargaBeli: body["Harga Beli"],
+            hargaJual: body["Harga Jual"],
+            keterangan: body.Keterangan
+        });
+        
+        await newAcc.save();
+        res.status(201).json(body);
+    } catch (error) {
+        res.status(500).json({ message: 'Gagal menyimpan: ' + error.message });
     }
-    const newAcc = new Account({
-        no: body.No,
-        kodeAkun: body["Kode Akun"],
-        gmail: body.Gmail,
-        passwordGmail: body["Password Gmail"],
-        passwordML: body["Password ML"],
-        hargaBeli: body["Harga Beli"],
-        hargaJual: body["Harga Jual"],
-        keterangan: body.Keterangan
-    });
-    await newAcc.save();
-    res.status(201).json(body);
 });
 
 app.put('/api/accounts/:kode', checkAuth, async (req, res) => {
-    const updated = await Account.findOneAndUpdate(
-        { kodeAkun: decodeURIComponent(req.params.kode).trim() },
-        req.body,
-        { new: true }
-    );
-    res.json(updated);
+    try {
+        const updated = await Account.findOneAndUpdate(
+            { kodeAkun: decodeURIComponent(req.params.kode).trim() },
+            req.body,
+            { new: true }
+        );
+        if (!updated) return res.status(404).json({ message: 'Data tidak ditemukan' });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ message: 'Gagal update: ' + error.message });
+    }
 });
 
 app.delete('/api/accounts/:kode', checkAuth, async (req, res) => {
-    await Account.deleteOne({ kodeAkun: decodeURIComponent(req.params.kode).trim() });
-    res.json({ message: 'Deleted' });
+    try {
+        const result = await Account.deleteOne({ kodeAkun: decodeURIComponent(req.params.kode).trim() });
+        if (result.deletedCount === 0) return res.status(404).json({ message: 'Data tidak ditemukan' });
+        res.json({ message: 'Deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Gagal menghapus: ' + error.message });
+    }
 });
 
 // For Vercel

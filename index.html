@@ -334,9 +334,12 @@
                     e.target.reset();
                     toggleModal();
                     fetchAccounts();
+                } else {
+                    const errorData = await response.json();
+                    alert('Gagal: ' + errorData.message);
                 }
             } catch (error) {
-                alert('Gagal menambah data');
+                alert('Gagal menambah data: Terjadi kesalahan koneksi');
             }
         });
 
