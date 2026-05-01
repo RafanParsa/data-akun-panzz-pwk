@@ -34,13 +34,17 @@ const connectDB = async () => {
     }
 };
 
-// Middleware to ensure DB connection
-app.use(async (req, res, next) => {
+// Middleware to ensure DB connection (Only for API routes)
+app.use('/api', async (req, res, next) => {
     try {
         await connectDB();
         next();
     } catch (err) {
-        res.status(500).json({ message: 'Database Connection Error', error: err.message });
+        res.status(500).json({ 
+            message: 'Gagal menyambung ke Database', 
+            error: err.message,
+            tip: 'Pastikan IP 0.0.0.0/0 sudah di-allow di MongoDB Atlas'
+        });
     }
 });
 
