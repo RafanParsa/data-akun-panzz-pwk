@@ -9,12 +9,32 @@ require('dotenv').config();
 
 const app = express();
 
-// Database Connection
-if (process.env.MONGODB_URI) {
-    mongoose.connect(process.env.MONGODB_URI)
-        .then(() => console.log('Connected to MongoDB'))
-        .catch(err => console.error('MongoDB error:', err));
-}
+// Database Connection (Singleton for Vercel)
+let isConnected = false;
+const connectDB = async () => {
+    if (isConnected) return;
+    try {
+        if (!process.env.MONGODB_URI) {
+            throw new Error('MONGODB_URI is not defined in environment variables');
+        }
+        await mongoose.connect(process.env.MONGODB_URI);
+        isConnected = true;
+        console.log('Connected to MongoDB Atlas');
+    } catch (err) {
+        console.error('MongoDB connection error:', err);
+        throw err;
+    }
+};
+
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        res.status(500).json({ message: 'Database Connection Error', error: err.message });
+    }
+});
 
 // Schema
 const Account = mongoose.models.Account || mongoose.model('Account', new mongoose.Schema({
@@ -42,7 +62,8 @@ app.use(express.static(path.join(process.cwd())));
 
 // Home Route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'index.html'));
+    const indexPath = path.join(__dirname, 'index.html');
+    res.sendFile(indexPath);
 });
 
 // Middleware
