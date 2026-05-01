@@ -9,19 +9,27 @@ require('dotenv').config();
 
 const app = express();
 
+// Disable Mongoose Buffering (PENTING untuk Vercel)
+mongoose.set('bufferCommands', false);
+
 // Database Connection (Singleton for Vercel)
 let isConnected = false;
 const connectDB = async () => {
     if (isConnected) return;
     try {
-        if (!process.env.MONGODB_URI) {
-            throw new Error('MONGODB_URI is not defined in environment variables');
-        }
-        await mongoose.connect(process.env.MONGODB_URI);
+        const uri = process.env.MONGODB_URI;
+        if (!uri) throw new Error('Variabel MONGODB_URI belum diisi di Vercel!');
+        
+        console.log('Memulai koneksi ke MongoDB...');
+        await mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 10000, // Tunggu maks 10 detik
+            socketTimeoutMS: 45000,
+        });
+        
         isConnected = true;
-        console.log('Connected to MongoDB Atlas');
+        console.log('Koneksi Berhasil!');
     } catch (err) {
-        console.error('MongoDB connection error:', err);
+        console.error('Gagal konek MongoDB:', err.message);
         throw err;
     }
 };
@@ -37,7 +45,7 @@ app.use(async (req, res, next) => {
 });
 
 // Schema
-const Account = mongoose.models.Account || mongoose.model('Account', new mongoose.Schema({
+const accountSchema = new mongoose.Schema({
     no: Number,
     kodeAkun: { type: String, required: true, unique: true },
     gmail: String,
@@ -46,7 +54,12 @@ const Account = mongoose.models.Account || mongoose.model('Account', new mongoos
     hargaBeli: Number,
     hargaJual: Number,
     keterangan: { type: String, default: 'Ready' }
-}));
+});
+
+// Disable buffering so it fails fast instead of waiting 10s
+accountSchema.set('bufferCommands', false);
+
+const Account = mongoose.models.Account || mongoose.model('Account', accountSchema);
 
 app.use(cors());
 app.use(bodyParser.json());
