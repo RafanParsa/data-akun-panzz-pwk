@@ -197,11 +197,19 @@ app.post('/api/accounts', checkAuth, async (req, res) => {
 
 app.put('/api/accounts/:kode', checkAuth, async (req, res) => {
     try {
+        const kode = decodeURIComponent(req.params.kode).trim();
+        const updateData = {};
+        
+        // Pastikan kita menangkap 'Keterangan' baik huruf besar maupun kecil
+        if (req.body.Keterangan) updateData.keterangan = req.body.Keterangan;
+        if (req.body.keterangan) updateData.keterangan = req.body.keterangan;
+
         const updated = await Account.findOneAndUpdate(
-            { kodeAkun: decodeURIComponent(req.params.kode).trim() },
-            req.body,
+            { kodeAkun: kode },
+            { $set: updateData },
             { new: true }
         );
+        
         if (!updated) return res.status(404).json({ message: 'Data tidak ditemukan' });
         res.json(updated);
     } catch (error) {

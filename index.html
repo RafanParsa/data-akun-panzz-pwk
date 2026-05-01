@@ -296,9 +296,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ Keterangan: newStatus })
                 });
-                if (response.ok) fetchAccounts();
+                if (response.ok) {
+                    fetchAccounts();
+                } else {
+                    const data = await response.json();
+                    alert('Gagal ubah status: ' + data.message);
+                }
             } catch (error) {
-                alert('Gagal mengubah status');
+                alert('Gagal mengubah status: Kesalahan koneksi');
             }
         }
 
