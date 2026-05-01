@@ -238,14 +238,13 @@
                 return;
             }
 
-            list.innerHTML = data.map(acc => {
-                const kodeAkun = acc["Kode Akun"] || "";
+            list.innerHTML = data.map((acc, index) => {
                 const status = acc.Keterangan || "";
                 
                 return `
                 <div class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 ${status === 'Ready' ? 'border-green-500' : 'border-red-500'} p-4 relative">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500">${kodeAkun}</span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500">${acc["Kode Akun"]}</span>
                         <span class="px-2 py-1 text-xs font-bold rounded-full ${status === 'Ready' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                             ${status}
                         </span>
@@ -260,18 +259,34 @@
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="toggleStatus('${kodeAkun}', '${status}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded text-sm font-semibold transition">
+                        <button onclick="handleToggleStatus(${index})" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded text-sm font-semibold transition">
                             Ubah Status
                         </button>
-                        <button onclick="copyAccountInfo('${kodeAkun}')" class="px-3 bg-green-50 hover:bg-green-100 text-green-600 py-2 rounded transition" title="Salin Info Akun">
+                        <button onclick="handleCopyInfo(${index})" class="px-3 bg-green-50 hover:bg-green-100 text-green-600 py-2 rounded transition" title="Salin Info Akun">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button onclick="deleteAccount('${kodeAkun}')" class="px-3 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded transition">
+                        <button onclick="handleDeleteAccount(${index})" class="px-3 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded transition">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `;}).join('');
+        }
+
+        // Fungsi pembantu agar tombol lebih stabil di semua device
+        function handleToggleStatus(index) {
+            const acc = accounts[index];
+            toggleStatus(acc["Kode Akun"], acc.Keterangan);
+        }
+
+        function handleCopyInfo(index) {
+            const acc = accounts[index];
+            copyAccountInfo(acc["Kode Akun"]);
+        }
+
+        function handleDeleteAccount(index) {
+            const acc = accounts[index];
+            deleteAccount(acc["Kode Akun"]);
         }
 
         function filterAccounts() {
