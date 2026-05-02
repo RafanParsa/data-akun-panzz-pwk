@@ -198,11 +198,19 @@ app.post('/api/accounts', checkAuth, async (req, res) => {
 app.put('/api/accounts/:kode', checkAuth, async (req, res) => {
     try {
         const kode = decodeURIComponent(req.params.kode).trim();
+        const body = req.body;
         const updateData = {};
         
-        // Pastikan kita menangkap 'Keterangan' baik huruf besar maupun kecil
-        if (req.body.Keterangan) updateData.keterangan = req.body.Keterangan;
-        if (req.body.keterangan) updateData.keterangan = req.body.keterangan;
+        // Map fields from body to schema fields
+        if (body["Kode Akun"]) updateData.kodeAkun = body["Kode Akun"];
+        if (body.Gmail) updateData.gmail = body.Gmail;
+        if (body["Password Gmail"]) updateData.passwordGmail = body["Password Gmail"];
+        if (body["Password ML"]) updateData.passwordML = body["Password ML"];
+        if (body["Harga Beli"] !== undefined) updateData.hargaBeli = Number(body["Harga Beli"]);
+        if (body["Harga Jual"] !== undefined) updateData.hargaJual = Number(body["Harga Jual"]);
+        if (body.Keterangan) updateData.keterangan = body.Keterangan;
+        // Support lowercase as fallback
+        if (body.keterangan) updateData.keterangan = body.keterangan;
 
         const updated = await Account.findOneAndUpdate(
             { kodeAkun: kode },

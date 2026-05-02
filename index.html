@@ -6,6 +6,7 @@
     <title>Panzz Store - Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
     <!-- Login Page -->
@@ -68,15 +69,16 @@
         <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
-                    <h2 class="text-lg font-bold">Tambah Akun Baru</h2>
+                    <h2 id="modalTitle" class="text-lg font-bold">Tambah Akun Baru</h2>
                     <button onclick="toggleModal()" class="text-white hover:text-gray-200">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <form id="accountForm" class="p-6 space-y-4">
+                    <input type="hidden" id="editOriginalKode">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Kode Akun</label>
-                        <input type="text" name="Kode Akun" required placeholder="ML-XXXX" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                        <input type="text" name="Kode Akun" id="inputKode" required placeholder="ML-XXXX" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Gmail</label>
@@ -160,27 +162,57 @@
 
                 if (response.ok) {
                     showMainContent();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Selamat Datang!',
+                        text: 'Berhasil masuk ke dashboard.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
                 } else {
                     const data = await response.json();
-                    // Menampilkan error lebih detail agar kita tahu masalahnya
-                    const detailError = data.error ? `\nDetail: ${data.error}` : '';
-                    const tip = data.tip ? `\nTip: ${data.tip}` : '';
-                    alert(`${data.message}${detailError}${tip}`);
+                    const detailError = data.error ? `<br><small class="text-red-500">${data.error}</small>` : '';
+                    const tip = data.tip ? `<br><small class="text-blue-500">${data.tip}</small>` : '';
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Login Gagal',
+                        html: `${data.message}${detailError}${tip}`
+                    });
                 }
             } catch (error) {
-                alert('Terjadi kesalahan koneksi ke server');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan',
+                    text: 'Terjadi kesalahan koneksi ke server'
+                });
             }
         });
 
         async function handleLogout() {
             await fetch('/api/logout', { method: 'POST' });
             showLoginPage();
+            Swal.fire({
+                icon: 'info',
+                title: 'Logged Out',
+                text: 'Anda telah keluar dari sistem.',
+                timer: 1500,
+                showConfirmButton: false
+            });
         }
 
         async function downloadExcel() {
             try {
+                Swal.fire({
+                    title: 'Menyiapkan Excel...',
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
                 const response = await fetch('/api/export-excel');
-                if (response.status === 401) return showLoginPage();
+                if (response.status === 401) {
+                    Swal.close();
+                    return showLoginPage();
+                }
                 
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -191,14 +223,26 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'File Excel berhasil diunduh.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             } catch (error) {
-                alert('Gagal mendownload Excel');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Download Gagal',
+                    text: 'Gagal mendownload Excel'
+                });
             }
         }
 
         function copyAccountInfo(kode) {
             const acc = accounts.find(a => String(a["Kode Akun"]).trim() === String(kode).trim());
-            if (!acc) return alert('Data tidak ditemukan');
+            if (!acc) return Swal.fire('Error', 'Data tidak ditemukan', 'error');
 
             const text = `*INFORMASI AKUN*
 *Kode Akun:* ${acc["Kode Akun"] || '-'}
@@ -213,9 +257,15 @@
 *Keterangan:* ${acc.Keterangan || '-'}`;
 
             navigator.clipboard.writeText(text).then(() => {
-                alert('Info akun berhasil disalin!');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Disalin!',
+                    text: 'Info akun berhasil disalin ke clipboard.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
             }).catch(err => {
-                alert('Gagal menyalin teks');
+                Swal.fire('Error', 'Gagal menyalin teks', 'error');
             });
         }
 
@@ -259,8 +309,11 @@
                         </div>
                     </div>
                     <div class="flex gap-2">
+                        <button onclick="handleEditAccount(${index})" class="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 py-2 rounded text-sm font-semibold transition">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
                         <button onclick="handleToggleStatus(${index})" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded text-sm font-semibold transition">
-                            Ubah Status
+                            Status
                         </button>
                         <button onclick="handleCopyInfo(${index})" class="px-3 bg-green-50 hover:bg-green-100 text-green-600 py-2 rounded transition" title="Salin Info Akun">
                             <i class="fas fa-copy"></i>
@@ -300,7 +353,38 @@
 
         function toggleModal() {
             const modal = document.getElementById('modal');
-            modal.classList.toggle('hidden');
+            const isHidden = modal.classList.contains('hidden');
+            
+            if (isHidden) {
+                // Reset form to "Tambah" mode when opening empty
+                document.getElementById('accountForm').reset();
+                document.getElementById('modalTitle').innerText = 'Tambah Akun Baru';
+                document.getElementById('editOriginalKode').value = '';
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function handleEditAccount(index) {
+            const acc = accounts[index];
+            const form = document.getElementById('accountForm');
+            
+            // Fill form with current data
+            form.elements["Kode Akun"].value = acc["Kode Akun"];
+            form.elements["Gmail"].value = acc.Gmail;
+            form.elements["Password Gmail"].value = acc["Password Gmail"];
+            form.elements["Password ML"].value = acc["Password ML"];
+            form.elements["Harga Beli"].value = acc["Harga Beli"];
+            form.elements["Harga Jual"].value = acc["Harga Jual"];
+            form.elements["Keterangan"].value = acc.Keterangan;
+            
+            // Set hidden ID and change title
+            document.getElementById('editOriginalKode').value = acc["Kode Akun"];
+            document.getElementById('modalTitle').innerText = 'Edit Akun';
+            
+            // Show modal
+            document.getElementById('modal').classList.remove('hidden');
         }
 
         async function toggleStatus(kode, currentStatus) {
@@ -315,29 +399,47 @@
                     fetchAccounts();
                 } else {
                     const data = await response.json();
-                    alert('Gagal ubah status: ' + data.message);
+                    Swal.fire('Gagal', 'Gagal ubah status: ' + data.message, 'error');
                 }
             } catch (error) {
-                alert('Gagal mengubah status: Kesalahan koneksi');
+                Swal.fire('Error', 'Gagal mengubah status: Kesalahan koneksi', 'error');
             }
         }
 
         async function deleteAccount(kode) {
-            if (!confirm(`Hapus akun ${kode}?`)) return;
-            try {
-                const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                    method: 'DELETE'
-                });
-                if (response.ok) {
-                    alert('Berhasil dihapus');
-                    fetchAccounts();
-                } else {
-                    const err = await response.json();
-                    alert('Gagal menghapus: ' + err.message);
+            Swal.fire({
+                title: 'Apakah anda yakin?',
+                text: `Akun ${kode} akan dihapus permanen!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
+                            method: 'DELETE'
+                        });
+                        if (response.ok) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Terhapus!',
+                                text: 'Data akun berhasil dihapus.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                            fetchAccounts();
+                        } else {
+                            const err = await response.json();
+                            Swal.fire('Gagal', 'Gagal menghapus: ' + err.message, 'error');
+                        }
+                    } catch (error) {
+                        Swal.fire('Error', 'Terjadi kesalahan koneksi', 'error');
+                    }
                 }
-            } catch (error) {
-                alert('Terjadi kesalahan koneksi');
-            }
+            });
         }
 
         document.getElementById('accountForm').addEventListener('submit', async (e) => {
@@ -347,22 +449,36 @@
             data["Harga Beli"] = Number(data["Harga Beli"]);
             data["Harga Jual"] = Number(data["Harga Jual"]);
 
+            const originalKode = document.getElementById('editOriginalKode').value;
+            const isEdit = originalKode !== '';
+
             try {
-                const response = await fetch('/api/accounts', {
-                    method: 'POST',
+                const url = isEdit ? `/api/accounts/${encodeURIComponent(originalKode)}` : '/api/accounts';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+
                 if (response.ok) {
                     e.target.reset();
                     toggleModal();
                     fetchAccounts();
+                    Swal.fire({
+                        icon: 'success',
+                        title: isEdit ? 'Berhasil Update!' : 'Berhasil Simpan!',
+                        text: isEdit ? 'Data akun telah diperbarui.' : 'Data akun baru telah ditambahkan.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
                 } else {
                     const errorData = await response.json();
-                    alert('Gagal: ' + errorData.message);
+                    Swal.fire('Gagal', errorData.message, 'error');
                 }
             } catch (error) {
-                alert('Gagal menambah data: Terjadi kesalahan koneksi');
+                Swal.fire('Error', 'Gagal memproses data: Terjadi kesalahan koneksi', 'error');
             }
         });
 
