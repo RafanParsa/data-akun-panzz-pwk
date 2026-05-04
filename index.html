@@ -8,9 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Cropper.js -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <!-- OpenCV.js dimuat secara dinamis -->
+    <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0.1/dist/opencv.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -296,8 +295,8 @@
                         <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
                         <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
                     </div>
-                    <div id="scannerStatus" class="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-                        <i class="fas fa-check-circle"></i> <span>AI AUTO-SCAN ACTIVE</span>
+                    <div id="scannerStatus" class="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                        <i class="fas fa-spinner fa-spin" id="aiStatusIcon"></i> <span id="aiStatusText">AI LOADING...</span>
                     </div>
                 </div>
 
@@ -420,7 +419,27 @@
         let priceChart = null;
         let cropper = null;
 
-        // Smart Skin Detection Algorithm (OpenCV-free)
+        let isOpenCvReady = false;
+
+        // OpenCV Ready Hook
+        var cv = {
+            onRuntimeInitialized: () => {
+                isOpenCvReady = true;
+                const statusDiv = document.getElementById('scannerStatus');
+                const statusIcon = document.getElementById('aiStatusIcon');
+                const statusText = document.getElementById('aiStatusText');
+                
+                statusDiv.classList.replace('text-slate-400', 'text-emerald-600');
+                statusDiv.classList.replace('bg-slate-100', 'bg-emerald-50');
+                statusIcon.classList.replace('fa-spinner', 'fa-check-circle');
+                statusIcon.classList.remove('fa-spin');
+                statusText.innerText = 'AI READY';
+                
+                console.log('OpenCV.js is ready.');
+            }
+        };
+
+        // Smart Skin Detection Algorithm (OpenCV Auto-Scan)
         function processAutoScan(imageSrc) {
             const scanResults = document.getElementById('scanResults');
             const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
@@ -430,62 +449,62 @@
             img.onload = () => {
                 Swal.fire({ 
                     title: 'AI Memindai Gambar...', 
-                    text: 'Menganalisis layout grid skin',
+                    text: 'Mendeteksi letak skin secara otomatis',
                     allowOutsideClick: false, 
                     didOpen: () => Swal.showLoading(),
                     customClass: { popup: 'rounded-3xl' }
                 });
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-
-                // Grid Detection Logic kustom untuk UI Mobile Legends
-                const gridRows = 2;
-                const gridCols = 5;
                 
-                // Koordinat relatif UI Mobile Legends (Koleksi Skin)
-                const startX = img.width * 0.23;
-                const startY = img.height * 0.26;
-                const gridWidth = img.width * 0.68;
-                const gridHeight = img.height * 0.65;
+                const src = cv.imread(img);
+                const gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
                 
-                const cellW = gridWidth / gridCols;
-                const cellH = gridHeight / gridRows;
-
+                // Canny Edge Detection untuk grid
+                const edges = new cv.Mat();
+                cv.Canny(gray, edges, 50, 150, 3);
+                
+                const M = cv.Mat.ones(3, 3, cv.CV_8U);
+                const dilated = new cv.Mat();
+                cv.dilate(edges, dilated, M);
+                
+                const contours = new cv.Hierarchy();
+                const hierarchy = new cv.Hierarchy();
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                
                 detectedSkinsGrid.innerHTML = '';
                 let count = 0;
+                let foundRects = [];
 
-                for (let row = 0; row < gridRows; row++) {
-                    for (let col = 0; col < gridCols; col++) {
-                        const x = startX + (col * cellW);
-                        const y = startY + (row * cellH);
-                        
-                        const padding = 5;
-                        const finalW = cellW - (padding * 2);
-                        const finalH = cellH - (padding * 2);
+                for (let i = 0; i < contours.size(); ++i) {
+                    const cnt = contours.get(i);
+                    const rect = cv.boundingRect(cnt);
+                    const aspectRatio = rect.width / rect.height;
+                    
+                    // Filter: Skin ML biasanya 0.5 - 0.9 aspek rasionya
+                    const isCorrectRatio = aspectRatio > 0.45 && aspectRatio < 0.85;
+                    const isCorrectSize = rect.width > img.width * 0.05 && rect.height > img.height * 0.1;
+                    
+                    if (isCorrectRatio && isCorrectSize) {
+                        const isDuplicate = foundRects.some(r => 
+                            Math.abs(r.x - rect.x) < 20 && Math.abs(r.y - rect.y) < 20
+                        );
 
-                        const skinCanvas = document.createElement('canvas');
-                        skinCanvas.width = finalW;
-                        skinCanvas.height = finalH;
-                        const skinCtx = skinCanvas.getContext('2d');
-                        
-                        skinCtx.drawImage(img, x + padding, y + padding, finalW, finalH, 0, 0, finalW, finalH);
-                        
-                        const pixelData = skinCtx.getImageData(finalW/2, finalH/2, 1, 1).data;
-                        const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
-                        
-                        if (brightness > 20) {
+                        if (!isDuplicate) {
+                            foundRects.push(rect);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = rect.width;
+                            canvas.height = rect.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                            
                             const container = document.createElement('div');
-                            container.className = 'relative group';
-                            container.appendChild(skinCanvas);
+                            container.className = 'relative group bg-slate-900 rounded-xl overflow-hidden shadow-lg';
+                            container.appendChild(canvas);
                             
                             const btn = document.createElement('button');
                             btn.innerHTML = '<i class="fas fa-download"></i>';
                             btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg';
-                            btn.onclick = () => downloadCanvas(skinCanvas);
+                            btn.onclick = () => downloadCanvas(canvas);
                             container.appendChild(btn);
                             
                             detectedSkinsGrid.appendChild(container);
@@ -494,40 +513,39 @@
                     }
                 }
 
+                src.delete(); gray.delete(); edges.delete(); dilated.delete(); M.delete(); contours.delete(); hierarchy.delete();
+                
                 Swal.close();
                 if (count > 0) {
                     document.getElementById('detectedCount').innerText = count;
                     dropZone.classList.add('hidden');
                     scanResults.classList.remove('hidden');
-                    document.getElementById('cropperArea').classList.add('hidden');
                 } else {
-                    Swal.fire({ 
-                        icon: 'warning', 
-                        title: 'Gagal Scan Otomatis', 
-                        text: 'Layout tidak dikenali. Gunakan mode manual.',
-                        customClass: { popup: 'rounded-3xl' }
-                    });
-                    initManualCropper(imageSrc);
+                    Swal.fire({ icon: 'warning', title: 'AI Tidak Menemukan Skin', text: 'Coba screenshot ulang dengan tampilan menu koleksi yang jelas.', customClass: { popup: 'rounded-3xl' } });
                 }
             };
             img.src = imageSrc;
         }
 
-        // Inisialisasi Event Listeners
+        // Event Listeners
         window.addEventListener('load', () => {
             const imageInput = document.getElementById('imageInput');
             const dropZone = document.getElementById('dropZone');
             
             if (dropZone && imageInput) {
-                dropZone.onclick = () => imageInput.click();
+                dropZone.onclick = () => {
+                    if (!isOpenCvReady) {
+                        Swal.fire({ title: 'AI Masih Loading', text: 'Tunggu sebentar sampai muncul tanda AI READY.', icon: 'info', customClass: { popup: 'rounded-3xl' } });
+                        return;
+                    }
+                    imageInput.click();
+                };
                 
                 imageInput.onchange = (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
-                    reader.onload = (event) => {
-                        processAutoScan(event.target.result);
-                    };
+                    reader.onload = (event) => processAutoScan(event.target.result);
                     reader.readAsDataURL(file);
                 };
             }
@@ -674,27 +692,81 @@
         function generateAIRecommendations(stats) {
             const container = document.getElementById('aiRecommendations');
             const recs = [];
+
+            // Perhitungan Parameter Ekonomi Lanjut
             const roi = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100) : 0;
-            const readyRatio = stats.totalAccounts > 0 ? (stats.readyAccounts / stats.totalAccounts * 100) : 0;
+            const turnoverRate = stats.totalAccounts > 0 ? (stats.soldAccounts / stats.totalAccounts) : 0;
+            const inventoryHealth = stats.readyAccounts > 0 ? (stats.soldAccounts / stats.readyAccounts) : 0;
 
-            if (readyRatio > 70) {
-                recs.push({ icon: 'fa-exclamation-triangle', color: 'text-orange-500', bg: 'bg-orange-50', title: 'Analisis Likuiditas', desc: `Terlalu banyak modal tertahan (${readyRatio.toFixed(0)}% stok ready). Secara ekonomi, perputaran uang Anda melambat.` });
-            } else if (readyRatio < 20 && stats.totalAccounts > 5) {
-                recs.push({ icon: 'fa-chart-line', color: 'text-emerald-500', bg: 'bg-emerald-50', title: 'Momentum Penjualan', desc: `Tingkat penjualan Anda sangat tinggi! Pasar sedang merespon positif harga Anda.` });
+            // REASONING 1: Analisis Perputaran Modal (Inventory Turnover)
+            if (turnoverRate > 0.7) {
+                recs.push({
+                    icon: 'fa-chart-line',
+                    color: 'text-emerald-500',
+                    bg: 'bg-emerald-50',
+                    title: 'Analisis Cashflow: SANGAT SEHAT',
+                    desc: `Tingkat perputaran stok Anda mencapai ${(turnoverRate * 100).toFixed(0)}%. Secara ekonomi, ini menunjukkan likuiditas modal yang sangat cepat. Uang tidak mengendap lama di stok. **Rekomendasi:** Gunakan profit instan ini untuk 'Scaling' ke akun tier lebih tinggi.`
+                });
+            } else if (turnoverRate < 0.3 && stats.totalAccounts > 5) {
+                recs.push({
+                    icon: 'fa-exclamation-circle',
+                    color: 'text-orange-500',
+                    bg: 'bg-orange-50',
+                    title: 'Peringatan: MODAL MENGENDAP',
+                    desc: `Hanya ${(turnoverRate * 100).toFixed(0)}% stok yang bergerak. Ada risiko 'Opportunity Cost' di mana modal Anda 'beku'. **Tindakan AI:** Lakukan 'Flash Sale' pada 2 akun tertua untuk membebaskan modal (Cash Injection) guna membeli stok yang lebih populer.`
+                });
             }
 
-            if (roi > 40) {
-                recs.push({ icon: 'fa-gem', color: 'text-indigo-500', bg: 'bg-indigo-50', title: 'Efisiensi Tinggi', desc: `ROI sebesar ${roi.toFixed(1)}% menunjukkan pemilihan aset yang sangat cerdas.` });
-            } else if (stats.totalInvestment > 2000000 && roi < 10) {
-                recs.push({ icon: 'fa-shield-alt', color: 'text-red-500', bg: 'bg-red-50', title: 'Evaluasi Risiko', desc: `Pengeluaran besar terdeteksi tapi profit real masih rendah. Coba turunkan harga pada stok lama.` });
+            // REASONING 2: Strategi Compounding & Sultan
+            if (stats.totalProfit > 500000) {
+                recs.push({
+                    icon: 'fa-gem',
+                    color: 'text-indigo-500',
+                    bg: 'bg-indigo-50',
+                    title: 'Strategi Ekonomi: UPGRADE TIER',
+                    desc: `Profit terakumulasi Rp${stats.totalProfit.toLocaleString()}. Secara logika ekonomi, margin pada akun 'kecil' mulai jenuh. **Rekomendasi AI:** Berhenti membeli akun 'Smurf'. Alihkan modal untuk 1 akun 'Sultan' (Collector/Legend) karena margin profit per-transaksi 3x lebih besar dengan tenaga admin yang sama.`
+                });
             }
 
-            if (recs.length < 2) recs.push({ icon: 'fa-robot', color: 'text-slate-500', bg: 'bg-slate-50', title: 'Mode Observasi', desc: "AI sedang mengumpulkan data transaksi untuk analisis ekonomi yang lebih akurat." });
+            // REASONING 3: Rasio Efisiensi (ROI)
+            if (roi > 25) {
+                recs.push({
+                    icon: 'fa-brain',
+                    color: 'text-blue-500',
+                    bg: 'bg-blue-50',
+                    title: 'Analisis Nalar: OPTIMALISASI HARGA',
+                    desc: `ROI Anda ${(roi).toFixed(1)}% melampaui rata-rata pasar (15%). Nalar ekonomi menunjukkan Anda memiliki 'Competitive Advantage' dalam negosiasi beli. **Saran AI:** Anda bisa menaikkan harga jual sebesar 5% lagi tanpa kehilangan minat pembeli, melihat tingginya 'Demand' saat ini.`
+                });
+            }
+
+            // REASONING 4: Diversifikasi Risiko
+            if (stats.readyAccounts > 10) {
+                recs.push({
+                    icon: 'fa-shield-alt',
+                    color: 'text-red-500',
+                    bg: 'bg-red-50',
+                    title: 'Nalar Risiko: DIVERSIFIKASI',
+                    desc: `Anda memiliki ${stats.readyAccounts} akun ready. Jika semuanya memiliki spesifikasi serupa, Anda rentan terhadap perubahan 'Meta' game. **Saran AI:** Pastikan stok Anda bervariasi antara akun High-Winrate dan akun Skin-Collector untuk membagi risiko pasar.`
+                });
+            }
+
+            // Default fallback
+            if (recs.length < 2) {
+                recs.push({
+                    icon: 'fa-robot',
+                    color: 'text-slate-500',
+                    bg: 'bg-slate-50',
+                    title: 'AI Sedang Belajar',
+                    desc: "Data transaksi masih minim. Masukkan minimal 5 data akun terjual agar AI bisa mulai bernalar tentang siklus ekonomi dan strategi harga toko Anda."
+                });
+            }
 
             container.innerHTML = recs.slice(0, 2).map(r => `
-                <div class="recommendation-card p-6 ${r.bg} rounded-3xl border border-slate-100 flex flex-col gap-3">
+                <div class="recommendation-card p-6 ${r.bg} rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
                     <div class="flex items-center gap-3 ${r.color}">
-                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><i class="fas ${r.icon} text-lg"></i></div>
+                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                            <i class="fas ${r.icon} text-lg"></i>
+                        </div>
                         <span class="font-bold text-sm uppercase tracking-wider">${r.title}</span>
                     </div>
                     <p class="text-sm text-slate-600 leading-relaxed font-medium">${r.desc}</p>
