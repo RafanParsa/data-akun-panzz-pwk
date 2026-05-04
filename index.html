@@ -815,21 +815,71 @@
         }
 
         function updateCharts(stats) {
-            const ctxInv = document.getElementById('inventoryChart').getContext('2d');
-            if (inventoryChart) inventoryChart.destroy();
-            inventoryChart = new Chart(ctxInv, {
-                type: 'doughnut',
-                data: { labels: ['Ready', 'Terjual'], datasets: [{ data: [stats.readyAccounts, stats.soldAccounts], backgroundColor: ['#3b82f6', '#f97316'], borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
-            });
+            const canvasInv = document.getElementById('inventoryChart');
+            if (canvasInv) {
+                const ctxInv = canvasInv.getContext('2d');
+                if (inventoryChart) inventoryChart.destroy();
+                
+                // Cek jika data kosong
+                const hasData = stats.readyAccounts > 0 || stats.soldAccounts > 0;
+                
+                inventoryChart = new Chart(ctxInv, {
+                    type: 'doughnut',
+                    data: { 
+                        labels: hasData ? ['Ready', 'Terjual'] : ['Belum Ada Data'], 
+                        datasets: [{ 
+                            data: hasData ? [stats.readyAccounts, stats.soldAccounts] : [1], 
+                            backgroundColor: hasData ? ['#3b82f6', '#f97316'] : ['#f1f5f9'], 
+                            borderWidth: 0 
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { position: 'bottom' },
+                            tooltip: { enabled: hasData }
+                        }, 
+                        cutout: '70%' 
+                    }
+                });
+            }
 
-            const ctxPrice = document.getElementById('priceChart')?.getContext('2d');
-            if (ctxPrice) {
+            const canvasPrice = document.getElementById('priceChart');
+            if (canvasPrice) {
+                const ctxPrice = canvasPrice.getContext('2d');
                 if (priceChart) priceChart.destroy();
+                
+                // Perhitungan yang lebih logis untuk Distribusi Harga
+                // 1. Modal (Total Investasi)
+                // 2. Omzet (Uang yang sudah masuk + Potensi uang masuk)
+                // 3. Profit (Keuntungan bersih dari yang sudah terjual)
+                const totalOmzet = (stats.totalProfit + stats.totalInvestment); // Estimasi kasar total perputaran uang
+
                 priceChart = new Chart(ctxPrice, {
                     type: 'bar',
-                    data: { labels: ['Pengeluaran', 'Potensi Jual', 'Profit'], datasets: [{ data: [stats.totalInvestment, stats.potentialRevenue + stats.totalProfit, stats.totalProfit], backgroundColor: ['#64748b', '#3b82f6', '#10b981'], borderRadius: 12 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Rp' + (v / 1000) + 'k' } } } }
+                    data: { 
+                        labels: ['Modal (Spent)', 'Potensi Jual', 'Profit Bersih'], 
+                        datasets: [{ 
+                            label: 'Rupiah',
+                            data: [stats.totalInvestment, stats.potentialRevenue, stats.totalProfit], 
+                            backgroundColor: ['#64748b', '#3b82f6', '#10b981'], 
+                            borderRadius: 12 
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } }, 
+                        scales: { 
+                            y: { 
+                                beginAtZero: true, 
+                                ticks: { 
+                                    callback: (v) => 'Rp' + (v >= 1000000 ? (v/1000000).toFixed(1) + 'jt' : (v/1000) + 'k')
+                                } 
+                            } 
+                        } 
+                    }
                 });
             }
         }
