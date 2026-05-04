@@ -8,7 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- OpenCV Dihapus karena lambat, diganti AI Lokal Instan -->
+    <script async src="https://docs.opencv.org/4.5.4/opencv.js" id="opencv-js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -299,8 +301,8 @@
                         <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
                         <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
                     </div>
-                    <div id="scannerStatus" class="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full shadow-sm">
-                        <i class="fas fa-bolt"></i> <span>SUPER FAST AI READY</span>
+                    <div id="scannerStatus" class="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1 rounded-full shadow-sm">
+                        <i class="fas fa-spinner fa-spin" id="scannerIcon"></i> <span id="scannerText">AI INITIALIZING...</span>
                     </div>
                 </div>
 
@@ -422,9 +424,36 @@
         let inventoryChart = null;
         let priceChart = null;
         let cropper = null;
+        let isOpenCVReady = false;
 
-        // SUPER FAST AI SCANNER (Instant & Precise)
+        // OpenCV Initialization
+        var Module = {
+            onRuntimeInitialized() {
+                isOpenCVReady = true;
+                const statusIcon = document.getElementById('scannerIcon');
+                const statusText = document.getElementById('scannerText');
+                const statusBadge = document.getElementById('scannerStatus');
+                
+                if (statusIcon && statusText) {
+                    statusIcon.className = 'fas fa-check-circle';
+                    statusText.innerText = 'AI READY (OPENCV)';
+                    statusBadge.className = 'flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full shadow-sm';
+                }
+            }
+        };
+
+        // INITIAL AI SCANNER (OpenCV Powered)
         function processAutoScan(imageSrc) {
+            if (!isOpenCVReady) {
+                Swal.fire({ 
+                    icon: 'warning', 
+                    title: 'AI Belum Siap', 
+                    text: 'Mohon tunggu sebentar, sistem AI sedang memuat library (10MB+).',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+                return;
+            }
+
             const scanResults = document.getElementById('scanResults');
             const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
             const dropZone = document.getElementById('dropZone');
@@ -433,79 +462,114 @@
             img.onload = () => {
                 Swal.fire({ 
                     title: 'AI Memproses...', 
-                    text: 'Memotong skin secara instan',
-                    timer: 800,
+                    text: 'Mendeteksi kartu skin menggunakan Computer Vision',
                     showConfirmButton: false,
                     didOpen: () => Swal.showLoading(),
                     customClass: { popup: 'rounded-3xl' }
                 });
 
-                // Deteksi Resolusi & Padding Otomatis (Anti-Meleset)
-                // Kita memindai area koleksi skin dengan rasio yang sudah dikalibrasi ulang
-                const isWide = (img.width / img.height) > 1.8; // Cek apakah HP layar panjang (20:9)
-                
-                let startX = img.width * (isWide ? 0.238 : 0.232);
-                let startY = img.height * 0.265;
-                let gridW = img.width * (isWide ? 0.685 : 0.695);
-                let gridH = img.height * 0.645;
+                // Canvas untuk OpenCV
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
 
-                const gridCols = 5;
-                const gridRows = 2;
-                const cardW = gridW / gridCols;
-                const cardH = gridH / gridRows;
+                // Start OpenCV Processing
+                let src = cv.imread(canvas);
+                let gray = new cv.Mat();
+                let blurred = new cv.Mat();
+                let edges = new cv.Mat();
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+
+                // 1. Preprocessing
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+                cv.Canny(blurred, edges, 50, 150);
+
+                // 2. Dilate to connect edges
+                let M = cv.Mat.ones(3, 3, cv.CV_8U);
+                let dilated = new cv.Mat();
+                cv.dilate(edges, dilated, M);
+
+                // 3. Find Contours
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
                 detectedSkinsGrid.innerHTML = '';
                 let count = 0;
+                let cardBoxes = [];
 
-                for (let r = 0; r < gridRows; r++) {
-                    for (let c = 0; c < gridCols; c++) {
-                        let x = startX + (c * cardW);
-                        let y = startY + (r * cardH);
-                        
-                        // CROP PRESISI TINGGI (Gambar 1)
-                        // Mengambil area tengah kartu untuk membuang border grid
-                        const pX = cardW * 0.08; // Padding samping
-                        const pY = cardH * 0.05; // Padding atas/bawah
-                        
-                        const finalW = cardW - (pX * 2);
-                        const finalH = cardH - (pY * 2);
+                // 4. Filter Contours (Mencari bentuk kartu)
+                for (let i = 0; i < contours.size(); ++i) {
+                    let cnt = contours.get(i);
+                    let rect = cv.boundingRect(cnt);
+                    let aspectRatio = rect.width / rect.height;
+                    let area = rect.width * rect.height;
 
-                        const skinCanvas = document.createElement('canvas');
-                        skinCanvas.width = finalW;
-                        skinCanvas.height = finalH;
-                        const skinCtx = skinCanvas.getContext('2d');
-                        
-                        // Rendering Kualitas Tinggi
-                        skinCtx.imageSmoothingEnabled = true;
-                        skinCtx.imageSmoothingQuality = 'high';
-                        skinCtx.drawImage(img, x + pX, y + pY, finalW, finalH, 0, 0, finalW, finalH);
-                        
-                        // Deteksi Konten (Abaikan kotak kosong)
-                        const pixel = skinCtx.getImageData(finalW/2, finalH/2, 1, 1).data;
-                        if ((pixel[0]+pixel[1]+pixel[2])/3 > 20) {
-                            const container = document.createElement('div');
-                            container.className = 'relative group bg-slate-900 rounded-xl overflow-hidden shadow-lg border-2 border-transparent hover:border-blue-500 transition-all';
-                            skinCanvas.className = 'w-full block';
-                            container.appendChild(skinCanvas);
-                            
-                            const btn = document.createElement('button');
-                            btn.innerHTML = '<i class="fas fa-download"></i>';
-                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity';
-                            btn.onclick = () => downloadCanvas(skinCanvas);
-                            container.appendChild(btn);
-                            
-                            detectedSkinsGrid.appendChild(container);
-                            count++;
-                        }
+                    // Parameter Filter Kartu Skin MLBB
+                    // Rasio kartu biasanya sekitar 0.6 - 0.75
+                    const isRightRatio = aspectRatio > 0.5 && aspectRatio < 0.85;
+                    const isRightSize = area > (img.width * img.height * 0.005) && area < (img.width * img.height * 0.1);
+
+                    if (isRightRatio && isRightSize) {
+                        cardBoxes.push(rect);
                     }
                 }
 
+                // 5. Sort by Y then X (Urutan membaca)
+                cardBoxes.sort((a, b) => {
+                    if (Math.abs(a.y - b.y) > 20) return a.y - b.y;
+                    return a.x - b.x;
+                });
+
+                // 6. Render Detected Cards
+                cardBoxes.forEach(rect => {
+                    const skinCanvas = document.createElement('canvas');
+                    skinCanvas.width = rect.width;
+                    skinCanvas.height = rect.height;
+                    const skinCtx = skinCanvas.getContext('2d');
+                    
+                    skinCtx.imageSmoothingEnabled = true;
+                    skinCtx.imageSmoothingQuality = 'high';
+                    skinCtx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+
+                    const container = document.createElement('div');
+                    container.className = 'relative group bg-slate-900 rounded-xl overflow-hidden shadow-lg border-2 border-transparent hover:border-blue-500 transition-all';
+                    skinCanvas.className = 'w-full block';
+                    container.appendChild(skinCanvas);
+                    
+                    const btn = document.createElement('button');
+                    btn.innerHTML = '<i class="fas fa-download"></i>';
+                    btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity';
+                    btn.onclick = () => downloadCanvas(skinCanvas);
+                    container.appendChild(btn);
+                    
+                    detectedSkinsGrid.appendChild(container);
+                    count++;
+                });
+
+                // Cleanup OpenCV
+                src.delete(); gray.delete(); blurred.delete(); edges.delete(); 
+                dilated.delete(); contours.delete(); hierarchy.delete(); M.delete();
+
                 if (count > 0) {
+                    Swal.close();
                     document.getElementById('detectedCount').innerText = count;
                     dropZone.classList.add('hidden');
                     scanResults.classList.remove('hidden');
                 } else {
-                    Swal.fire({ icon: 'error', title: 'AI Gagal', text: 'Gunakan screenshot menu Koleksi Skin yang jelas.', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ 
+                        icon: 'error', 
+                        title: 'AI Gagal Mendeteksi', 
+                        text: 'Pastikan Anda menggunakan screenshot menu Koleksi Skin yang jelas. Jika gagal, gunakan fitur manual.',
+                        showCancelButton: true,
+                        confirmButtonText: 'Coba Manual',
+                        cancelButtonText: 'Tutup',
+                        customClass: { popup: 'rounded-3xl' }
+                    }).then((result) => {
+                        if (result.isConfirmed) initManualCropper(imageSrc);
+                    });
                 }
             };
             img.src = imageSrc;
