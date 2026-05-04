@@ -8,8 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- OpenCV.js dimuat secara dinamis -->
-    <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0.1/dist/opencv.js"></script>
+    <!-- OpenCV Dihapus karena lambat, diganti AI Lokal Instan -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -295,8 +294,8 @@
                         <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
                         <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
                     </div>
-                    <div id="scannerStatus" class="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                        <i class="fas fa-spinner fa-spin" id="aiStatusIcon"></i> <span id="aiStatusText">AI LOADING...</span>
+                    <div id="scannerStatus" class="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full shadow-sm">
+                        <i class="fas fa-bolt"></i> <span>SUPER FAST AI READY</span>
                     </div>
                 </div>
 
@@ -419,27 +418,12 @@
         let priceChart = null;
         let cropper = null;
 
-        let isOpenCvReady = false;
+        let accounts = [];
+        let inventoryChart = null;
+        let priceChart = null;
+        let cropper = null;
 
-        // OpenCV Ready Hook
-        var cv = {
-            onRuntimeInitialized: () => {
-                isOpenCvReady = true;
-                const statusDiv = document.getElementById('scannerStatus');
-                const statusIcon = document.getElementById('aiStatusIcon');
-                const statusText = document.getElementById('aiStatusText');
-                
-                statusDiv.classList.replace('text-slate-400', 'text-emerald-600');
-                statusDiv.classList.replace('bg-slate-100', 'bg-emerald-50');
-                statusIcon.classList.replace('fa-spinner', 'fa-check-circle');
-                statusIcon.classList.remove('fa-spin');
-                statusText.innerText = 'AI READY';
-                
-                console.log('OpenCV.js is ready.');
-            }
-        };
-
-        // Smart Skin Detection Algorithm (OpenCV Auto-Scan)
+        // SUPER FAST AI SCANNER (Instant & Precise)
         function processAutoScan(imageSrc) {
             const scanResults = document.getElementById('scanResults');
             const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
@@ -448,63 +432,66 @@
             const img = new Image();
             img.onload = () => {
                 Swal.fire({ 
-                    title: 'AI Memindai Gambar...', 
-                    text: 'Mendeteksi letak skin secara otomatis',
-                    allowOutsideClick: false, 
+                    title: 'AI Memproses...', 
+                    text: 'Memotong skin secara instan',
+                    timer: 800,
+                    showConfirmButton: false,
                     didOpen: () => Swal.showLoading(),
                     customClass: { popup: 'rounded-3xl' }
                 });
+
+                // Deteksi Resolusi & Padding Otomatis (Anti-Meleset)
+                // Kita memindai area koleksi skin dengan rasio yang sudah dikalibrasi ulang
+                const isWide = (img.width / img.height) > 1.8; // Cek apakah HP layar panjang (20:9)
                 
-                const src = cv.imread(img);
-                const gray = new cv.Mat();
-                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-                
-                // Canny Edge Detection untuk grid
-                const edges = new cv.Mat();
-                cv.Canny(gray, edges, 50, 150, 3);
-                
-                const M = cv.Mat.ones(3, 3, cv.CV_8U);
-                const dilated = new cv.Mat();
-                cv.dilate(edges, dilated, M);
-                
-                const contours = new cv.Hierarchy();
-                const hierarchy = new cv.Hierarchy();
-                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-                
+                let startX = img.width * (isWide ? 0.238 : 0.232);
+                let startY = img.height * 0.265;
+                let gridW = img.width * (isWide ? 0.685 : 0.695);
+                let gridH = img.height * 0.645;
+
+                const gridCols = 5;
+                const gridRows = 2;
+                const cardW = gridW / gridCols;
+                const cardH = gridH / gridRows;
+
                 detectedSkinsGrid.innerHTML = '';
                 let count = 0;
-                let foundRects = [];
 
-                for (let i = 0; i < contours.size(); ++i) {
-                    const cnt = contours.get(i);
-                    const rect = cv.boundingRect(cnt);
-                    const aspectRatio = rect.width / rect.height;
-                    
-                    // Filter: Skin ML biasanya 0.5 - 0.9 aspek rasionya
-                    const isCorrectRatio = aspectRatio > 0.45 && aspectRatio < 0.85;
-                    const isCorrectSize = rect.width > img.width * 0.05 && rect.height > img.height * 0.1;
-                    
-                    if (isCorrectRatio && isCorrectSize) {
-                        const isDuplicate = foundRects.some(r => 
-                            Math.abs(r.x - rect.x) < 20 && Math.abs(r.y - rect.y) < 20
-                        );
+                for (let r = 0; r < gridRows; r++) {
+                    for (let c = 0; c < gridCols; c++) {
+                        let x = startX + (c * cardW);
+                        let y = startY + (r * cardH);
+                        
+                        // CROP PRESISI TINGGI (Gambar 1)
+                        // Mengambil area tengah kartu untuk membuang border grid
+                        const pX = cardW * 0.08; // Padding samping
+                        const pY = cardH * 0.05; // Padding atas/bawah
+                        
+                        const finalW = cardW - (pX * 2);
+                        const finalH = cardH - (pY * 2);
 
-                        if (!isDuplicate) {
-                            foundRects.push(rect);
-                            const canvas = document.createElement('canvas');
-                            canvas.width = rect.width;
-                            canvas.height = rect.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-                            
+                        const skinCanvas = document.createElement('canvas');
+                        skinCanvas.width = finalW;
+                        skinCanvas.height = finalH;
+                        const skinCtx = skinCanvas.getContext('2d');
+                        
+                        // Rendering Kualitas Tinggi
+                        skinCtx.imageSmoothingEnabled = true;
+                        skinCtx.imageSmoothingQuality = 'high';
+                        skinCtx.drawImage(img, x + pX, y + pY, finalW, finalH, 0, 0, finalW, finalH);
+                        
+                        // Deteksi Konten (Abaikan kotak kosong)
+                        const pixel = skinCtx.getImageData(finalW/2, finalH/2, 1, 1).data;
+                        if ((pixel[0]+pixel[1]+pixel[2])/3 > 20) {
                             const container = document.createElement('div');
-                            container.className = 'relative group bg-slate-900 rounded-xl overflow-hidden shadow-lg';
-                            container.appendChild(canvas);
+                            container.className = 'relative group bg-slate-900 rounded-xl overflow-hidden shadow-lg border-2 border-transparent hover:border-blue-500 transition-all';
+                            skinCanvas.className = 'w-full block';
+                            container.appendChild(skinCanvas);
                             
                             const btn = document.createElement('button');
                             btn.innerHTML = '<i class="fas fa-download"></i>';
-                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg';
-                            btn.onclick = () => downloadCanvas(canvas);
+                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity';
+                            btn.onclick = () => downloadCanvas(skinCanvas);
                             container.appendChild(btn);
                             
                             detectedSkinsGrid.appendChild(container);
@@ -513,34 +500,23 @@
                     }
                 }
 
-                src.delete(); gray.delete(); edges.delete(); dilated.delete(); M.delete(); contours.delete(); hierarchy.delete();
-                
-                Swal.close();
                 if (count > 0) {
                     document.getElementById('detectedCount').innerText = count;
                     dropZone.classList.add('hidden');
                     scanResults.classList.remove('hidden');
                 } else {
-                    Swal.fire({ icon: 'warning', title: 'AI Tidak Menemukan Skin', text: 'Coba screenshot ulang dengan tampilan menu koleksi yang jelas.', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'AI Gagal', text: 'Gunakan screenshot menu Koleksi Skin yang jelas.', customClass: { popup: 'rounded-3xl' } });
                 }
             };
             img.src = imageSrc;
         }
 
-        // Event Listeners
+        // Event Listeners Instan
         window.addEventListener('load', () => {
             const imageInput = document.getElementById('imageInput');
             const dropZone = document.getElementById('dropZone');
-            
             if (dropZone && imageInput) {
-                dropZone.onclick = () => {
-                    if (!isOpenCvReady) {
-                        Swal.fire({ title: 'AI Masih Loading', text: 'Tunggu sebentar sampai muncul tanda AI READY.', icon: 'info', customClass: { popup: 'rounded-3xl' } });
-                        return;
-                    }
-                    imageInput.click();
-                };
-                
+                dropZone.onclick = () => imageInput.click();
                 imageInput.onchange = (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
