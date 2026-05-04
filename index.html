@@ -602,11 +602,16 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                if (isOpenCvReady) {
-                    processAutoScan(event.target.result);
-                } else {
-                    // Fallback to manual if OpenCV not ready
+                if (!isOpenCvReady) {
+                    Swal.fire({
+                        title: 'AI Sedang Inisialisasi',
+                        text: 'Tunggu beberapa detik sampai tombol AI READY muncul, lalu upload kembali.',
+                        icon: 'info',
+                        customClass: { popup: 'rounded-3xl' }
+                    });
                     initManualCropper(event.target.result);
+                } else {
+                    processAutoScan(event.target.result);
                 }
             };
             reader.readAsDataURL(file);
@@ -615,62 +620,90 @@
         function processAutoScan(imageSrc) {
             const img = new Image();
             img.onload = () => {
-                Swal.fire({ title: 'AI Memindai Gambar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                Swal.fire({ 
+                    title: 'AI Memindai Gambar...', 
+                    text: 'Mendeteksi letak skin secara otomatis',
+                    allowOutsideClick: false, 
+                    didOpen: () => Swal.showLoading(),
+                    customClass: { popup: 'rounded-3xl' }
+                });
                 
                 const src = cv.imread(img);
                 const gray = new cv.Mat();
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
                 
-                const blur = new cv.Mat();
-                cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+                // Peningkatan algoritma: Canny Edge Detection lebih stabil untuk grid
+                const edges = new cv.Mat();
+                cv.Canny(gray, edges, 50, 150, 3);
                 
-                const threshold = new cv.Mat();
-                cv.adaptiveThreshold(blur, threshold, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+                // Dilasi untuk menyambungkan garis kontur yang putus
+                const M = cv.Mat.ones(3, 3, cv.CV_8U);
+                const dilated = new cv.Mat();
+                cv.dilate(edges, dilated, M);
                 
                 const contours = new cv.Hierarchy();
                 const hierarchy = new cv.Hierarchy();
-                cv.findContours(threshold, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
                 
                 detectedSkinsGrid.innerHTML = '';
                 let count = 0;
+                let foundRects = [];
 
                 for (let i = 0; i < contours.size(); ++i) {
                     const cnt = contours.get(i);
                     const rect = cv.boundingRect(cnt);
                     const aspectRatio = rect.width / rect.height;
                     
-                    // Filter based on typical MLBB skin card ratio (approx 2:3)
-                    if (aspectRatio > 0.5 && aspectRatio < 0.8 && rect.width > img.width * 0.05 && rect.height > img.height * 0.05) {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = rect.width;
-                        canvas.height = rect.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-                        
-                        const container = document.createElement('div');
-                        container.className = 'relative group';
-                        container.appendChild(canvas);
-                        
-                        const btn = document.createElement('button');
-                        btn.innerHTML = '<i class="fas fa-download"></i>';
-                        btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg';
-                        btn.onclick = () => downloadCanvas(canvas);
-                        container.appendChild(btn);
-                        
-                        detectedSkinsGrid.appendChild(container);
-                        count++;
+                    // Filter lebih luas: Skin ML biasanya 0.5 - 0.9 aspek rasionya
+                    const isCorrectRatio = aspectRatio > 0.4 && aspectRatio < 0.95;
+                    const isCorrectSize = rect.width > img.width * 0.04 && rect.height > img.height * 0.08;
+                    
+                    if (isCorrectRatio && isCorrectSize) {
+                        // Hindari deteksi ganda di area yang sama
+                        const isDuplicate = foundRects.some(r => 
+                            Math.abs(r.x - rect.x) < 20 && Math.abs(r.y - rect.y) < 20
+                        );
+
+                        if (!isDuplicate) {
+                            foundRects.push(rect);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = rect.width;
+                            canvas.height = rect.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                            
+                            const container = document.createElement('div');
+                            container.className = 'relative group';
+                            container.appendChild(canvas);
+                            
+                            const btn = document.createElement('button');
+                            btn.innerHTML = '<i class="fas fa-download"></i>';
+                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg';
+                            btn.onclick = () => downloadCanvas(canvas);
+                            container.appendChild(btn);
+                            
+                            detectedSkinsGrid.appendChild(container);
+                            count++;
+                        }
                     }
                 }
 
-                src.delete(); gray.delete(); blur.delete(); threshold.delete(); contours.delete(); hierarchy.delete();
+                // Cleanup
+                src.delete(); gray.delete(); edges.delete(); dilated.delete(); M.delete(); contours.delete(); hierarchy.delete();
                 
                 Swal.close();
                 if (count > 0) {
                     document.getElementById('detectedCount').innerText = count;
                     dropZone.classList.add('hidden');
                     scanResults.classList.remove('hidden');
+                    document.getElementById('cropperArea').classList.add('hidden');
                 } else {
-                    Swal.fire({ icon: 'info', title: 'AI Tidak Menemukan Skin', text: 'Mencoba mode potong manual...', timer: 2000 });
+                    Swal.fire({ 
+                        icon: 'warning', 
+                        title: 'AI Kurang Yakin', 
+                        text: 'Gunakan mode manual untuk hasil terbaik pada gambar ini.',
+                        customClass: { popup: 'rounded-3xl' }
+                    });
                     initManualCropper(imageSrc);
                 }
             };
