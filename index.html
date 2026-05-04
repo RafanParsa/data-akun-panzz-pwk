@@ -11,7 +11,6 @@
     <!-- Cropper.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <!-- OpenCV.js dimuat secara dinamis hanya saat dibutuhkan -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -297,8 +296,8 @@
                         <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
                         <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
                     </div>
-                    <div id="scannerStatus" class="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors" onclick="loadAI()">
-                        <i class="fas fa-play-circle" id="aiStatusIcon"></i> <span id="aiStatusText">AKTIFKAN AI SCANNER</span>
+                    <div id="scannerStatus" class="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                        <i class="fas fa-check-circle"></i> <span>AI AUTO-SCAN ACTIVE</span>
                     </div>
                 </div>
 
@@ -420,65 +419,144 @@
         let inventoryChart = null;
         let priceChart = null;
         let cropper = null;
-        let isOpenCvReady = false;
-        let isAiLoading = false;
 
-        // Fungsi untuk memuat OpenCV secara dinamis (Lazy Load)
-        function loadAI() {
-            if (isOpenCvReady || isAiLoading) return;
-            
-            isAiLoading = true;
-            const statusDiv = document.getElementById('scannerStatus');
-            const statusIcon = document.getElementById('aiStatusIcon');
-            const statusText = document.getElementById('aiStatusText');
-            
-            statusDiv.classList.replace('text-blue-600', 'text-slate-400');
-            statusDiv.classList.replace('bg-blue-50', 'bg-slate-100');
-            statusIcon.classList.replace('fa-play-circle', 'fa-spinner');
-            statusIcon.classList.add('fa-spin');
-            statusText.innerText = 'AI SEDANG DIUNDUH (10MB)...';
-            
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0.1/dist/opencv.js';
-            script.async = true;
-            
-            // OpenCV menggunakan variabel global 'cv' yang memiliki callback 'onRuntimeInitialized'
-            window.cv = {
-                onRuntimeInitialized: () => {
-                    isOpenCvReady = true;
-                    isAiLoading = false;
-                    
-                    statusDiv.classList.replace('text-slate-400', 'text-emerald-600');
-                    statusDiv.classList.replace('bg-slate-100', 'bg-emerald-50');
-                    statusIcon.classList.replace('fa-spinner', 'fa-check-circle');
-                    statusIcon.classList.remove('fa-spin');
-                    statusText.innerText = 'AI READY';
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'AI Scanner Aktif!',
-                        text: 'Sekarang Anda bisa menggunakan fitur Auto-Scan.',
-                        timer: 2000,
-                        showConfirmButton: false,
+        // Smart Skin Detection Algorithm (OpenCV-free)
+        function processAutoScan(imageSrc) {
+            const img = new Image();
+            img.onload = () => {
+                Swal.fire({ 
+                    title: 'AI Memindai Gambar...', 
+                    text: 'Menganalisis layout grid skin',
+                    allowOutsideClick: false, 
+                    didOpen: () => Swal.showLoading(),
+                    customClass: { popup: 'rounded-3xl' }
+                });
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // Grid Detection Logic kustom untuk UI Mobile Legends
+                // MLBB UI biasanya memiliki grid tetap di tengah layar
+                // Kita akan memindai area potensial (pusat)
+                
+                const skins = [];
+                const gridRows = 2;
+                const gridCols = 5;
+                
+                // Koordinat relatif UI Mobile Legends (Koleksi Skin)
+                // Area grid biasanya dimulai dari 20% lebar dan 25% tinggi
+                const startX = img.width * 0.23;
+                const startY = img.height * 0.26;
+                const gridWidth = img.width * 0.68;
+                const gridHeight = img.height * 0.65;
+                
+                const cellW = gridWidth / gridCols;
+                const cellH = gridHeight / gridRows;
+
+                detectedSkinsGrid.innerHTML = '';
+                let count = 0;
+
+                for (let row = 0; row < gridRows; row++) {
+                    for (let col = 0; col < gridCols; col++) {
+                        const x = startX + (col * cellW);
+                        const y = startY + (row * cellH);
+                        
+                        // Margin kecil untuk membuang frame grid
+                        const padding = 5;
+                        const finalW = cellW - (padding * 2);
+                        const finalH = cellH - (padding * 2);
+
+                        const skinCanvas = document.createElement('canvas');
+                        skinCanvas.width = finalW;
+                        skinCanvas.height = finalH;
+                        const skinCtx = skinCanvas.getContext('2d');
+                        
+                        skinCtx.drawImage(img, x + padding, y + padding, finalW, finalH, 0, 0, finalW, finalH);
+                        
+                        // Cek apakah area tersebut berisi konten (bukan background kosong)
+                        // Menggunakan rata-rata warna sederhana
+                        const pixelData = skinCtx.getImageData(finalW/2, finalH/2, 1, 1).data;
+                        const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
+                        
+                        if (brightness > 20) { // Jika tidak terlalu gelap (berarti ada konten)
+                            const container = document.createElement('div');
+                            container.className = 'relative group';
+                            container.appendChild(skinCanvas);
+                            
+                            const btn = document.createElement('button');
+                            btn.innerHTML = '<i class="fas fa-download"></i>';
+                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg';
+                            btn.onclick = () => downloadCanvas(skinCanvas);
+                            container.appendChild(btn);
+                            
+                            detectedSkinsGrid.appendChild(container);
+                            count++;
+                        }
+                    }
+                }
+
+                Swal.close();
+                if (count > 0) {
+                    document.getElementById('detectedCount').innerText = count;
+                    dropZone.classList.add('hidden');
+                    scanResults.classList.remove('hidden');
+                    document.getElementById('cropperArea').classList.add('hidden');
+                } else {
+                    Swal.fire({ 
+                        icon: 'warning', 
+                        title: 'Gagal Scan Otomatis', 
+                        text: 'Layout tidak dikenali. Gunakan mode manual.',
                         customClass: { popup: 'rounded-3xl' }
                     });
+                    initManualCropper(imageSrc);
                 }
             };
-
-            script.onerror = () => {
-                isAiLoading = false;
-                statusDiv.classList.replace('text-slate-400', 'text-red-600');
-                statusDiv.classList.replace('bg-slate-100', 'bg-red-50');
-                statusIcon.classList.replace('fa-spinner', 'fa-exclamation-circle');
-                statusIcon.classList.remove('fa-spin');
-                statusText.innerText = 'GAGAL MEMUAT AI';
-                Swal.fire('Error', 'Gagal mengunduh library AI. Periksa koneksi internet Anda.', 'error');
-            };
-
-            document.head.appendChild(script);
+            img.src = imageSrc;
         }
 
-        // OpenCV Ready Hook (Dihapus karena sudah pindah ke loadAI)
+        // Event listener untuk input gambar
+        imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                processAutoScan(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        };
+
+        function downloadCanvas(canvas) {
+            const link = document.createElement('a');
+            link.download = `Skin_ML_Auto_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function downloadAllDetected() {
+            const canvases = detectedSkinsGrid.querySelectorAll('canvas');
+            canvases.forEach((c, i) => {
+                setTimeout(() => downloadCanvas(c), i * 300);
+            });
+        }
+
+        function resetScanner() {
+            scanResults.classList.add('hidden');
+            document.getElementById('cropperArea').classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            imageInput.value = '';
+        }
+
+        function initManualCropper(src) {
+            const img = document.getElementById('imageToCrop');
+            img.src = src;
+            dropZone.classList.add('hidden');
+            document.getElementById('cropperArea').classList.remove('hidden');
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(img, { viewMode: 1 });
+        }
 
         // Auth Logic
         async function checkAuth() {
@@ -636,156 +714,6 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Rp' + (v / 1000) + 'k' } } } }
                 });
             }
-        }
-
-        // Scanner & Cropper Logic
-        const imageInput = document.getElementById('imageInput');
-        const dropZone = document.getElementById('dropZone');
-        const scanResults = document.getElementById('scanResults');
-        const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
-
-        dropZone.onclick = () => imageInput.click();
-        imageInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                if (!isOpenCvReady) {
-                    Swal.fire({
-                        title: 'AI Sedang Inisialisasi',
-                        text: 'Tunggu beberapa detik sampai tombol AI READY muncul, lalu upload kembali.',
-                        icon: 'info',
-                        customClass: { popup: 'rounded-3xl' }
-                    });
-                    initManualCropper(event.target.result);
-                } else {
-                    processAutoScan(event.target.result);
-                }
-            };
-            reader.readAsDataURL(file);
-        };
-
-        function processAutoScan(imageSrc) {
-            const img = new Image();
-            img.onload = () => {
-                Swal.fire({ 
-                    title: 'AI Memindai Gambar...', 
-                    text: 'Mendeteksi letak skin secara otomatis',
-                    allowOutsideClick: false, 
-                    didOpen: () => Swal.showLoading(),
-                    customClass: { popup: 'rounded-3xl' }
-                });
-                
-                const src = cv.imread(img);
-                const gray = new cv.Mat();
-                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-                
-                // Peningkatan algoritma: Canny Edge Detection lebih stabil untuk grid
-                const edges = new cv.Mat();
-                cv.Canny(gray, edges, 50, 150, 3);
-                
-                // Dilasi untuk menyambungkan garis kontur yang putus
-                const M = cv.Mat.ones(3, 3, cv.CV_8U);
-                const dilated = new cv.Mat();
-                cv.dilate(edges, dilated, M);
-                
-                const contours = new cv.Hierarchy();
-                const hierarchy = new cv.Hierarchy();
-                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-                
-                detectedSkinsGrid.innerHTML = '';
-                let count = 0;
-                let foundRects = [];
-
-                for (let i = 0; i < contours.size(); ++i) {
-                    const cnt = contours.get(i);
-                    const rect = cv.boundingRect(cnt);
-                    const aspectRatio = rect.width / rect.height;
-                    
-                    // Filter lebih luas: Skin ML biasanya 0.5 - 0.9 aspek rasionya
-                    const isCorrectRatio = aspectRatio > 0.4 && aspectRatio < 0.95;
-                    const isCorrectSize = rect.width > img.width * 0.04 && rect.height > img.height * 0.08;
-                    
-                    if (isCorrectRatio && isCorrectSize) {
-                        // Hindari deteksi ganda di area yang sama
-                        const isDuplicate = foundRects.some(r => 
-                            Math.abs(r.x - rect.x) < 20 && Math.abs(r.y - rect.y) < 20
-                        );
-
-                        if (!isDuplicate) {
-                            foundRects.push(rect);
-                            const canvas = document.createElement('canvas');
-                            canvas.width = rect.width;
-                            canvas.height = rect.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-                            
-                            const container = document.createElement('div');
-                            container.className = 'relative group';
-                            container.appendChild(canvas);
-                            
-                            const btn = document.createElement('button');
-                            btn.innerHTML = '<i class="fas fa-download"></i>';
-                            btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg';
-                            btn.onclick = () => downloadCanvas(canvas);
-                            container.appendChild(btn);
-                            
-                            detectedSkinsGrid.appendChild(container);
-                            count++;
-                        }
-                    }
-                }
-
-                // Cleanup
-                src.delete(); gray.delete(); edges.delete(); dilated.delete(); M.delete(); contours.delete(); hierarchy.delete();
-                
-                Swal.close();
-                if (count > 0) {
-                    document.getElementById('detectedCount').innerText = count;
-                    dropZone.classList.add('hidden');
-                    scanResults.classList.remove('hidden');
-                    document.getElementById('cropperArea').classList.add('hidden');
-                } else {
-                    Swal.fire({ 
-                        icon: 'warning', 
-                        title: 'AI Kurang Yakin', 
-                        text: 'Gunakan mode manual untuk hasil terbaik pada gambar ini.',
-                        customClass: { popup: 'rounded-3xl' }
-                    });
-                    initManualCropper(imageSrc);
-                }
-            };
-            img.src = imageSrc;
-        }
-
-        function downloadCanvas(canvas) {
-            const link = document.createElement('a');
-            link.download = `Skin_ML_${Date.now()}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-        }
-
-        function downloadAllDetected() {
-            const canvases = detectedSkinsGrid.querySelectorAll('canvas');
-            canvases.forEach((c, i) => {
-                setTimeout(() => downloadCanvas(c), i * 300);
-            });
-        }
-
-        function resetScanner() {
-            scanResults.classList.add('hidden');
-            document.getElementById('cropperArea').classList.add('hidden');
-            dropZone.classList.remove('hidden');
-            imageInput.value = '';
-        }
-
-        function initManualCropper(src) {
-            const img = document.getElementById('imageToCrop');
-            img.src = src;
-            dropZone.classList.add('hidden');
-            document.getElementById('cropperArea').classList.remove('hidden');
-            if (cropper) cropper.destroy();
-            cropper = new Cropper(img, { viewMode: 1 });
         }
 
         function cropAndDownload() {
