@@ -3,116 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panzz Store - Login</title>
+    <title>Panzz Store - Dashboard Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .sidebar-link.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .section { display: none; }
+        .section.active { display: block; }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body class="bg-slate-50 min-h-screen">
     <!-- Login Page -->
     <div id="loginPage" class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-blue-600 mb-2">Admin Panzz Store</h1>
-                <p class="text-gray-500">Silakan login untuk mengelola data</p>
+        <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md border border-slate-100">
+            <div class="text-center mb-10">
+                <div class="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
+                    <i class="fas fa-gamepad text-white text-3xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-slate-800 mb-2">Panzz Store</h1>
+                <p class="text-slate-500">Silakan login untuk mengelola store</p>
             </div>
             <form id="loginForm" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Username</label>
-                    <input type="text" id="username" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" id="username" required class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Password</label>
-                    <input type="password" id="password" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 border focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" required class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                    </div>
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-lg">
-                    Login Sekarang
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]">
+                    Masuk ke Dashboard
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Main Content (Hidden by default) -->
-    <div id="mainContent" class="hidden">
-        <div class="max-w-4xl mx-auto p-4">
-            <!-- Header -->
-            <header class="flex justify-between items-center mb-6 bg-blue-600 p-4 rounded-lg shadow-lg text-white">
-                <h1 class="text-2xl font-bold">Panzz Store 🎮</h1>
-                <div class="flex gap-2">
-                    <button onclick="downloadExcel()" class="bg-green-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-green-600 transition" title="Download Excel">
-                        <i class="fas fa-file-excel"></i>
-                    </button>
-                    <button onclick="toggleModal()" class="bg-white text-blue-600 px-4 py-2 rounded-full font-semibold hover:bg-blue-50 transition">
-                        + Tambah Akun
-                    </button>
-                    <button onclick="handleLogout()" class="bg-red-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-red-600 transition">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+    <!-- Main Content Container -->
+    <div id="mainContent" class="hidden flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col fixed h-full z-40 transition-transform lg:translate-x-0 -translate-x-full" id="sidebar">
+            <div class="p-6 flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i class="fas fa-gamepad"></i>
                 </div>
-            </header>
+                <span class="text-xl font-bold text-slate-800">Panzz Store</span>
+            </div>
+            
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <button onclick="switchSection('dashboard')" class="sidebar-link active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all font-medium" data-section="dashboard">
+                    <i class="fas fa-chart-pie w-5"></i> Dashboard
+                </button>
+                <button onclick="switchSection('accounts')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all font-medium" data-section="accounts">
+                    <i class="fas fa-th-list w-5"></i> Daftar Akun
+                </button>
+                <button onclick="switchSection('stats')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all font-medium" data-section="stats">
+                    <i class="fas fa-chart-line w-5"></i> Statistik
+                </button>
+            </nav>
 
-            <!-- Search & Filter -->
-            <div class="mb-6 flex gap-2">
-                <input type="text" id="searchInput" onkeyup="filterAccounts()" placeholder="Cari Kode Akun atau Gmail..." class="flex-1 p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button onclick="fetchAccounts()" class="bg-gray-200 text-gray-700 px-4 rounded-lg hover:bg-gray-300 transition" title="Refresh Data">
-                    <i class="fas fa-sync-alt"></i>
+            <div class="p-4 border-t border-slate-100">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all font-medium">
+                    <i class="fas fa-sign-out-alt w-5"></i> Keluar
                 </button>
             </div>
+        </aside>
 
-            <!-- Accounts List -->
-            <div id="accountsList" class="grid gap-4 md:grid-cols-2">
-                <div class="col-span-full text-center py-10 text-gray-500">Memuat data...</div>
-            </div>
-        </div>
+        <!-- Main Body -->
+        <main class="flex-1 lg:ml-64 p-4 lg:p-8">
+            <!-- Mobile Toggle -->
+            <button class="lg:hidden mb-4 p-2 text-slate-600" onclick="toggleSidebar()">
+                <i class="fas fa-bars text-2xl"></i>
+            </button>
+
+            <!-- Dashboard Section -->
+            <section id="dashboardSection" class="section active space-y-8">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Ringkasan Store</h2>
+                        <p class="text-slate-500">Selamat datang kembali di panel kontrol.</p>
+                    </div>
+                    <button onclick="fetchStats()" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-blue-100 p-3 rounded-2xl text-blue-600">
+                                <i class="fas fa-box text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Total Akun</p>
+                                <h3 class="text-2xl font-bold text-slate-800" id="statTotalAccounts">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-green-100 p-3 rounded-2xl text-green-600">
+                                <i class="fas fa-check-circle text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Ready Stock</p>
+                                <h3 class="text-2xl font-bold text-slate-800" id="statReadyAccounts">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-orange-100 p-3 rounded-2xl text-orange-600">
+                                <i class="fas fa-shopping-cart text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Terjual</p>
+                                <h3 class="text-2xl font-bold text-slate-800" id="statSoldAccounts">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-emerald-100 p-3 rounded-2xl text-emerald-600">
+                                <i class="fas fa-money-bill-wave text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Total Profit</p>
+                                <h3 class="text-2xl font-bold text-slate-800" id="statTotalProfit">Rp0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Chart Preview -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <h4 class="font-bold text-slate-800 mb-6">Status Inventori</h4>
+                        <div class="h-64">
+                            <canvas id="inventoryChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Quick Actions -->
+                    <div class="bg-blue-600 p-8 rounded-3xl shadow-lg shadow-blue-200 text-white relative overflow-hidden">
+                        <div class="relative z-10">
+                            <h4 class="text-xl font-bold mb-2">Butuh Bantuan?</h4>
+                            <p class="text-blue-100 text-sm mb-6">Kelola stok akun dengan mudah dan pantau keuntungan Anda secara real-time.</p>
+                            <button onclick="switchSection('accounts')" class="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all">
+                                Kelola Stok Sekarang
+                            </button>
+                        </div>
+                        <i class="fas fa-rocket absolute -bottom-4 -right-4 text-8xl text-blue-500 opacity-50 transform -rotate-12"></i>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Accounts Section -->
+            <section id="accountsSection" class="section space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Daftar Akun</h2>
+                        <p class="text-slate-500">Kelola database akun game Anda.</p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="downloadExcel()" class="bg-green-100 text-green-600 px-4 py-2 rounded-xl font-semibold hover:bg-green-200 transition-all flex items-center gap-2">
+                            <i class="fas fa-file-excel"></i> <span class="hidden md:inline">Export Excel</span>
+                        </button>
+                        <button onclick="toggleModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                            + Tambah Akun
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Filter -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 items-center">
+                    <div class="relative flex-1">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="searchInput" onkeyup="filterAccounts()" placeholder="Cari Kode Akun atau Gmail..." class="block w-full pl-10 pr-3 py-2 bg-slate-50 border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <button onclick="fetchAccounts()" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+
+                <!-- Accounts Grid -->
+                <div id="accountsList" class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    <div class="col-span-full text-center py-20 text-slate-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                        <p>Memuat data akun...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section id="statsSection" class="section space-y-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Analisis Penjualan</h2>
+                    <p class="text-slate-500">Data mendalam performa toko Anda.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                        <h4 class="font-bold text-slate-800 mb-6">Distribusi Harga</h4>
+                        <div class="h-80">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                                <span class="text-slate-600 font-medium">Total Investasi</span>
+                                <span class="font-bold text-slate-800" id="statTotalInvestment">Rp0</span>
+                            </div>
+                            <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl text-blue-700">
+                                <span class="font-medium">Potensi Pendapatan</span>
+                                <span class="font-bold" id="statPotentialRevenue">Rp0</span>
+                            </div>
+                            <div class="flex justify-between items-center p-4 bg-emerald-50 rounded-2xl text-emerald-700 border border-emerald-100">
+                                <span class="font-medium">Margin Keuntungan (ROI)</span>
+                                <span class="font-bold" id="statROI">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
 
         <!-- Modal Form -->
-        <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
-                    <h2 id="modalTitle" class="text-lg font-bold">Tambah Akun Baru</h2>
-                    <button onclick="toggleModal()" class="text-white hover:text-gray-200">
+        <div id="modal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-[100] backdrop-blur-sm">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 transform transition-all">
+                <div class="bg-white p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h2 id="modalTitle" class="text-xl font-bold text-slate-800">Tambah Akun Baru</h2>
+                    <button onclick="toggleModal()" class="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-xl transition-all">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <form id="accountForm" class="p-6 space-y-4">
+                <form id="accountForm" class="p-6 space-y-5">
                     <input type="hidden" id="editOriginalKode">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Kode Akun</label>
-                        <input type="text" name="Kode Akun" id="inputKode" required placeholder="ML-XXXX" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2 md:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Kode Akun</label>
+                            <input type="text" name="Kode Akun" id="inputKode" required placeholder="ML-XXXX" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+                        <div class="col-span-2 md:col-span-1">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Keterangan</label>
+                            <select name="Keterangan" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')">
+                                <option value="Ready">Ready</option>
+                                <option value="Sold">Sold</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Gmail</label>
-                        <input type="email" name="Gmail" required placeholder="example@gmail.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Gmail</label>
+                        <input type="email" name="Gmail" required placeholder="example@gmail.com" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Pass Gmail</label>
-                            <input type="text" name="Password Gmail" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Pass Gmail</label>
+                            <input type="text" name="Password Gmail" required class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Pass ML</label>
-                            <input type="text" name="Password ML" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Pass ML</label>
+                            <input type="text" name="Password ML" required class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Harga Beli</label>
-                            <input type="number" name="Harga Beli" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Harga Beli</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm">Rp</span>
+                                <input type="number" name="Harga Beli" required class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Harga Jual</label>
-                            <input type="number" name="Harga Jual" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Harga Jual</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm">Rp</span>
+                                <input type="number" name="Harga Jual" required class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Keterangan</label>
-                        <select name="Keterangan" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
-                            <option value="Ready">Ready</option>
-                            <option value="Sold">Sold</option>
-                        </select>
                     </div>
                     <div class="pt-4">
-                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">Simpan Data</button>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+                            Simpan Perubahan
+                        </button>
                     </div>
                 </form>
             </div>
@@ -121,6 +314,8 @@
 
     <script>
         let accounts = [];
+        let inventoryChart = null;
+        let priceChart = null;
 
         // Auth Logic
         async function checkAuth() {
@@ -140,12 +335,48 @@
         function showMainContent() {
             document.getElementById('loginPage').classList.add('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
-            fetchAccounts();
+            document.getElementById('mainContent').classList.add('flex');
+            switchSection('dashboard');
         }
 
         function showLoginPage() {
             document.getElementById('loginPage').classList.remove('hidden');
             document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('flex');
+        }
+
+        function switchSection(sectionId) {
+            // Update UI
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId + 'Section').classList.add('active');
+            
+            // Update Sidebar
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                if (link.dataset.section === sectionId) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            // Handle data fetching
+            if (sectionId === 'dashboard') {
+                fetchStats();
+            } else if (sectionId === 'accounts') {
+                fetchAccounts();
+            } else if (sectionId === 'stats') {
+                fetchStats(); // Stats page uses the same data but displays it differently
+            }
+
+            // Close sidebar on mobile after selection
+            if (window.innerWidth < 1024) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -167,24 +398,24 @@
                         title: 'Selamat Datang!',
                         text: 'Berhasil masuk ke dashboard.',
                         timer: 1500,
-                        showConfirmButton: false
+                        showConfirmButton: false,
+                        customClass: { popup: 'rounded-3xl' }
                     });
                 } else {
                     const data = await response.json();
-                    const detailError = data.error ? `<br><small class="text-red-500">${data.error}</small>` : '';
-                    const tip = data.tip ? `<br><small class="text-blue-500">${data.tip}</small>` : '';
-                    
                     Swal.fire({
                         icon: 'error',
                         title: 'Login Gagal',
-                        html: `${data.message}${detailError}${tip}`
+                        text: data.message,
+                        customClass: { popup: 'rounded-3xl' }
                     });
                 }
             } catch (error) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Kesalahan',
-                    text: 'Terjadi kesalahan koneksi ke server'
+                    text: 'Terjadi kesalahan koneksi ke server',
+                    customClass: { popup: 'rounded-3xl' }
                 });
             }
         });
@@ -197,79 +428,102 @@
                 title: 'Logged Out',
                 text: 'Anda telah keluar dari sistem.',
                 timer: 1500,
-                showConfirmButton: false
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-3xl' }
             });
         }
 
-        async function downloadExcel() {
+        // Stats Logic
+        async function fetchStats() {
             try {
-                Swal.fire({
-                    title: 'Menyiapkan Excel...',
-                    didOpen: () => { Swal.showLoading(); }
-                });
-
-                const response = await fetch('/api/export-excel');
-                if (response.status === 401) {
-                    Swal.close();
-                    return showLoginPage();
+                const response = await fetch('/api/stats');
+                if (response.status === 401) return showLoginPage();
+                const stats = await response.json();
+                
+                // Update Dashboard Cards
+                document.getElementById('statTotalAccounts').innerText = stats.totalAccounts;
+                document.getElementById('statReadyAccounts').innerText = stats.readyAccounts;
+                document.getElementById('statSoldAccounts').innerText = stats.soldAccounts;
+                document.getElementById('statTotalProfit').innerText = 'Rp' + stats.totalProfit.toLocaleString('id-ID');
+                
+                // Update Stats Page
+                const inv = document.getElementById('statTotalInvestment');
+                const rev = document.getElementById('statPotentialRevenue');
+                const roi = document.getElementById('statROI');
+                
+                if (inv) inv.innerText = 'Rp' + stats.totalInvestment.toLocaleString('id-ID');
+                if (rev) rev.innerText = 'Rp' + stats.potentialRevenue.toLocaleString('id-ID');
+                if (roi) {
+                    const margin = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100).toFixed(1) : 0;
+                    roi.innerText = margin + '%';
                 }
-                
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Data_Penjualan_PanzzStore_${new Date().toLocaleDateString()}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'File Excel berhasil diunduh.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+
+                updateCharts(stats);
             } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Download Gagal',
-                    text: 'Gagal mendownload Excel'
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        function updateCharts(stats) {
+            // Inventory Chart (Doughnut)
+            const ctxInv = document.getElementById('inventoryChart').getContext('2d');
+            if (inventoryChart) inventoryChart.destroy();
+            inventoryChart = new Chart(ctxInv, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ready Stock', 'Terjual'],
+                    datasets: [{
+                        data: [stats.readyAccounts, stats.soldAccounts],
+                        backgroundColor: ['#3b82f6', '#f97316'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Price/Profit Chart (Simplified bar)
+            const ctxPrice = document.getElementById('priceChart')?.getContext('2d');
+            if (ctxPrice) {
+                if (priceChart) priceChart.destroy();
+                priceChart = new Chart(ctxPrice, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Investasi', 'Potensi Jual', 'Profit Saat Ini'],
+                        datasets: [{
+                            label: 'Rupiah',
+                            data: [stats.totalInvestment, stats.potentialRevenue + stats.totalProfit, stats.totalProfit],
+                            backgroundColor: ['#64748b', '#3b82f6', '#10b981'],
+                            borderRadius: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'Rp' + (value / 1000) + 'k';
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
             }
         }
 
-        function copyAccountInfo(kode) {
-            const acc = accounts.find(a => String(a["Kode Akun"]).trim() === String(kode).trim());
-            if (!acc) return Swal.fire('Error', 'Data tidak ditemukan', 'error');
-
-            const text = `*INFORMASI AKUN*
-*Kode Akun:* ${acc["Kode Akun"] || '-'}
-*Email:* ${acc.Gmail || '-'}
-*Password Google:* ${acc["Password Gmail"] || '-'}
-*Password ML:* ${acc["Password ML"] || '-'}
-
-*Notes:*
-- Segera login dan mengganti Password
-- Setelah mengamankan akun, lalu ss kirim ke admin "SS DONE"
-
-*Keterangan:* ${acc.Keterangan || '-'}`;
-
-            navigator.clipboard.writeText(text).then(() => {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Disalin!',
-                    text: 'Info akun berhasil disalin ke clipboard.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            }).catch(err => {
-                Swal.fire('Error', 'Gagal menyalin teks', 'error');
-            });
-        }
-
-        // Data Logic
+        // Accounts Logic
         async function fetchAccounts() {
             try {
                 const response = await fetch('/api/accounts');
@@ -277,69 +531,76 @@
                 accounts = await response.json();
                 renderAccounts();
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error fetching accounts:', error);
             }
         }
 
         function renderAccounts(data = accounts) {
             const list = document.getElementById('accountsList');
             if (data.length === 0) {
-                list.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500">Tidak ada data ditemukan.</div>';
+                list.innerHTML = `
+                    <div class="col-span-full text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                        <div class="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-folder-open text-slate-300 text-2xl"></i>
+                        </div>
+                        <p class="text-slate-500 font-medium">Tidak ada data ditemukan.</p>
+                    </div>
+                `;
                 return;
             }
 
             list.innerHTML = data.map((acc, index) => {
-                const status = acc.Keterangan || "";
-                
+                const isReady = acc.Keterangan === 'Ready';
                 return `
-                <div class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 ${status === 'Ready' ? 'border-green-500' : 'border-red-500'} p-4 relative">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500">${acc["Kode Akun"]}</span>
-                        <span class="px-2 py-1 text-xs font-bold rounded-full ${status === 'Ready' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                            ${status}
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-md transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                            ${acc["Kode Akun"]}
+                        </div>
+                        <span class="px-3 py-1 text-xs font-bold rounded-full ${isReady ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                            ${acc.Keterangan}
                         </span>
                     </div>
-                    <h3 class="font-bold text-gray-800 truncate mb-1">${acc.Gmail || '-'}</h3>
-                    <div class="text-sm text-gray-600 space-y-1 mb-4">
-                        <p><span class="font-medium">Pass Gmail:</span> ${acc["Password Gmail"] || '-'}</p>
-                        <p><span class="font-medium">Pass ML:</span> ${acc["Password ML"] || '-'}</p>
-                        <div class="flex justify-between pt-2 border-t mt-2">
-                            <p><span class="font-medium">Beli:</span> Rp${(acc["Harga Beli"] || 0).toLocaleString('id-ID')}</p>
-                            <p><span class="font-medium">Jual:</span> Rp${(acc["Harga Jual"] || 0).toLocaleString('id-ID')}</p>
+                    
+                    <h3 class="font-bold text-slate-800 truncate mb-4 text-lg">${acc.Gmail || '-'}</h3>
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-400">Password Gmail</span>
+                            <span class="font-semibold text-slate-700">${acc["Password Gmail"] || '-'}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-400">Password ML</span>
+                            <span class="font-semibold text-slate-700">${acc["Password ML"] || '-'}</span>
+                        </div>
+                        <div class="pt-3 border-t border-slate-50 flex justify-between items-end">
+                            <div>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase">Harga Beli</p>
+                                <p class="font-bold text-slate-600">Rp${(acc["Harga Beli"] || 0).toLocaleString('id-ID')}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] text-blue-400 font-bold uppercase">Harga Jual</p>
+                                <p class="font-bold text-blue-600 text-lg">Rp${(acc["Harga Jual"] || 0).toLocaleString('id-ID')}</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="handleEditAccount(${index})" class="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 py-2 rounded text-sm font-semibold transition">
-                            <i class="fas fa-edit mr-1"></i> Edit
+
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="handleEditAccount(${index})" class="col-span-1 p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all" title="Edit">
+                            <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="handleToggleStatus(${index})" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded text-sm font-semibold transition">
-                            Status
+                        <button onclick="toggleStatus('${acc["Kode Akun"]}', '${acc.Keterangan}')" class="col-span-1 p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-600 rounded-xl transition-all" title="Ubah Status">
+                            <i class="fas fa-sync-alt"></i>
                         </button>
-                        <button onclick="handleCopyInfo(${index})" class="px-3 bg-green-50 hover:bg-green-100 text-green-600 py-2 rounded transition" title="Salin Info Akun">
+                        <button onclick="copyAccountInfo('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-green-50 hover:text-green-600 text-slate-600 rounded-xl transition-all" title="Salin Info">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button onclick="handleDeleteAccount(${index})" class="px-3 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded transition">
-                            <i class="fas fa-trash"></i>
+                        <button onclick="deleteAccount('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-xl transition-all" title="Hapus">
+                            <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </div>
             `;}).join('');
-        }
-
-        // Fungsi pembantu agar tombol lebih stabil di semua device
-        function handleToggleStatus(index) {
-            const acc = accounts[index];
-            toggleStatus(acc["Kode Akun"], acc.Keterangan);
-        }
-
-        function handleCopyInfo(index) {
-            const acc = accounts[index];
-            copyAccountInfo(acc["Kode Akun"]);
-        }
-
-        function handleDeleteAccount(index) {
-            const acc = accounts[index];
-            deleteAccount(acc["Kode Akun"]);
         }
 
         function filterAccounts() {
@@ -351,18 +612,20 @@
             renderAccounts(filtered);
         }
 
+        // Form Logic
         function toggleModal() {
             const modal = document.getElementById('modal');
             const isHidden = modal.classList.contains('hidden');
             
             if (isHidden) {
-                // Reset form to "Tambah" mode when opening empty
                 document.getElementById('accountForm').reset();
                 document.getElementById('modalTitle').innerText = 'Tambah Akun Baru';
                 document.getElementById('editOriginalKode').value = '';
                 modal.classList.remove('hidden');
+                modal.classList.add('flex');
             } else {
                 modal.classList.add('hidden');
+                modal.classList.remove('flex');
             }
         }
 
@@ -370,7 +633,6 @@
             const acc = accounts[index];
             const form = document.getElementById('accountForm');
             
-            // Fill form with current data
             form.elements["Kode Akun"].value = acc["Kode Akun"];
             form.elements["Gmail"].value = acc.Gmail;
             form.elements["Password Gmail"].value = acc["Password Gmail"];
@@ -379,67 +641,12 @@
             form.elements["Harga Jual"].value = acc["Harga Jual"];
             form.elements["Keterangan"].value = acc.Keterangan;
             
-            // Set hidden ID and change title
             document.getElementById('editOriginalKode').value = acc["Kode Akun"];
-            document.getElementById('modalTitle').innerText = 'Edit Akun';
+            document.getElementById('modalTitle').innerText = 'Edit Data Akun';
             
-            // Show modal
-            document.getElementById('modal').classList.remove('hidden');
-        }
-
-        async function toggleStatus(kode, currentStatus) {
-            const newStatus = currentStatus === 'Ready' ? 'Sold' : 'Ready';
-            try {
-                const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Keterangan: newStatus })
-                });
-                if (response.ok) {
-                    fetchAccounts();
-                } else {
-                    const data = await response.json();
-                    Swal.fire('Gagal', 'Gagal ubah status: ' + data.message, 'error');
-                }
-            } catch (error) {
-                Swal.fire('Error', 'Gagal mengubah status: Kesalahan koneksi', 'error');
-            }
-        }
-
-        async function deleteAccount(kode) {
-            Swal.fire({
-                title: 'Apakah anda yakin?',
-                text: `Akun ${kode} akan dihapus permanen!`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya, Hapus!',
-                cancelButtonText: 'Batal'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                            method: 'DELETE'
-                        });
-                        if (response.ok) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Terhapus!',
-                                text: 'Data akun berhasil dihapus.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                            fetchAccounts();
-                        } else {
-                            const err = await response.json();
-                            Swal.fire('Gagal', 'Gagal menghapus: ' + err.message, 'error');
-                        }
-                    } catch (error) {
-                        Swal.fire('Error', 'Terjadi kesalahan koneksi', 'error');
-                    }
-                }
-            });
+            const modal = document.getElementById('modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
 
         document.getElementById('accountForm').addEventListener('submit', async (e) => {
@@ -463,26 +670,124 @@
                 });
 
                 if (response.ok) {
-                    e.target.reset();
                     toggleModal();
                     fetchAccounts();
+                    fetchStats();
                     Swal.fire({
                         icon: 'success',
-                        title: isEdit ? 'Berhasil Update!' : 'Berhasil Simpan!',
-                        text: isEdit ? 'Data akun telah diperbarui.' : 'Data akun baru telah ditambahkan.',
+                        title: 'Berhasil!',
+                        text: isEdit ? 'Data telah diperbarui.' : 'Data baru telah ditambahkan.',
                         timer: 1500,
-                        showConfirmButton: false
+                        showConfirmButton: false,
+                        customClass: { popup: 'rounded-3xl' }
                     });
                 } else {
                     const errorData = await response.json();
                     Swal.fire('Gagal', errorData.message, 'error');
                 }
             } catch (error) {
-                Swal.fire('Error', 'Gagal memproses data: Terjadi kesalahan koneksi', 'error');
+                Swal.fire('Error', 'Terjadi kesalahan koneksi', 'error');
             }
         });
 
-        // Initial check
+        async function toggleStatus(kode, currentStatus) {
+            const newStatus = currentStatus === 'Ready' ? 'Sold' : 'Ready';
+            try {
+                const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Keterangan: newStatus })
+                });
+                if (response.ok) {
+                    fetchAccounts();
+                    fetchStats();
+                }
+            } catch (error) {
+                console.error('Error toggling status:', error);
+            }
+        }
+
+        async function deleteAccount(kode) {
+            const result = await Swal.fire({
+                title: 'Hapus Akun?',
+                text: "Data yang dihapus tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' }
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        fetchAccounts();
+                        fetchStats();
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Terhapus!',
+                            timer: 1000,
+                            showConfirmButton: false,
+                            customClass: { popup: 'rounded-3xl' }
+                        });
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Gagal menghapus data', 'error');
+                }
+            }
+        }
+
+        async function downloadExcel() {
+            try {
+                Swal.fire({
+                    title: 'Menyiapkan Excel...',
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                const response = await fetch('/api/export-excel');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `PanzzStore_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                Swal.close();
+            } catch (error) {
+                Swal.fire('Error', 'Gagal export data', 'error');
+            }
+        }
+
+        function copyAccountInfo(kode) {
+            const acc = accounts.find(a => String(a["Kode Akun"]).trim() === String(kode).trim());
+            if (!acc) return;
+
+            const text = `*INFORMASI AKUN - PANZZ STORE*\n` +
+                         `----------------------------\n` +
+                         `*Kode:* ${acc["Kode Akun"]}\n` +
+                         `*Email:* ${acc.Gmail}\n` +
+                         `*Pass Gmail:* ${acc["Password Gmail"]}\n` +
+                         `*Pass ML:* ${acc["Password ML"]}\n` +
+                         `----------------------------\n` +
+                         `*Notes:* Segera amankan akun & ganti password!`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Copied!',
+                    timer: 1000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            });
+        }
+
+        // Initialize
         checkAuth();
     </script>
 </body>

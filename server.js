@@ -162,6 +162,29 @@ app.get('/api/accounts', checkAuth, async (req, res) => {
     }
 });
 
+app.get('/api/stats', checkAuth, async (req, res) => {
+    try {
+        const accounts = await Account.find();
+        
+        const stats = {
+            totalAccounts: accounts.length,
+            readyAccounts: accounts.filter(acc => acc.keterangan === 'Ready').length,
+            soldAccounts: accounts.filter(acc => acc.keterangan === 'Sold').length,
+            totalProfit: accounts
+                .filter(acc => acc.keterangan === 'Sold')
+                .reduce((sum, acc) => sum + ((acc.hargaJual || 0) - (acc.hargaBeli || 0)), 0),
+            totalInvestment: accounts.reduce((sum, acc) => sum + (acc.hargaBeli || 0), 0),
+            potentialRevenue: accounts
+                .filter(acc => acc.keterangan === 'Ready')
+                .reduce((sum, acc) => sum + (acc.hargaJual || 0), 0)
+        };
+        
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ message: 'Gagal mengambil statistik: ' + error.message });
+    }
+});
+
 app.post('/api/accounts', checkAuth, async (req, res) => {
     try {
         const body = req.body;
