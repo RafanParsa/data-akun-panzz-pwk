@@ -11,8 +11,7 @@
     <!-- Cropper.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <!-- OpenCV.js for AI Scanning - Menggunakan CDN yang lebih cepat -->
-    <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0.1/dist/opencv.js"></script>
+    <!-- OpenCV.js dimuat secara dinamis hanya saat dibutuhkan -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -298,8 +297,8 @@
                         <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
                         <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
                     </div>
-                    <div id="scannerStatus" class="flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                        <i class="fas fa-spinner fa-spin" id="aiStatusIcon"></i> <span id="aiStatusText">AI LOADING...</span>
+                    <div id="scannerStatus" class="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors" onclick="loadAI()">
+                        <i class="fas fa-play-circle" id="aiStatusIcon"></i> <span id="aiStatusText">AKTIFKAN AI SCANNER</span>
                     </div>
                 </div>
 
@@ -422,24 +421,64 @@
         let priceChart = null;
         let cropper = null;
         let isOpenCvReady = false;
+        let isAiLoading = false;
 
-        // OpenCV Ready Hook
-        var cv = {
-            onRuntimeInitialized: () => {
-                isOpenCvReady = true;
-                const statusDiv = document.getElementById('scannerStatus');
-                const statusIcon = document.getElementById('aiStatusIcon');
-                const statusText = document.getElementById('aiStatusText');
-                
-                statusDiv.classList.replace('text-slate-400', 'text-emerald-600');
-                statusDiv.classList.replace('bg-slate-100', 'bg-emerald-50');
-                statusIcon.classList.replace('fa-spinner', 'fa-check-circle');
+        // Fungsi untuk memuat OpenCV secara dinamis (Lazy Load)
+        function loadAI() {
+            if (isOpenCvReady || isAiLoading) return;
+            
+            isAiLoading = true;
+            const statusDiv = document.getElementById('scannerStatus');
+            const statusIcon = document.getElementById('aiStatusIcon');
+            const statusText = document.getElementById('aiStatusText');
+            
+            statusDiv.classList.replace('text-blue-600', 'text-slate-400');
+            statusDiv.classList.replace('bg-blue-50', 'bg-slate-100');
+            statusIcon.classList.replace('fa-play-circle', 'fa-spinner');
+            statusIcon.classList.add('fa-spin');
+            statusText.innerText = 'AI SEDANG DIUNDUH (10MB)...';
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.6.0.1/dist/opencv.js';
+            script.async = true;
+            
+            // OpenCV menggunakan variabel global 'cv' yang memiliki callback 'onRuntimeInitialized'
+            window.cv = {
+                onRuntimeInitialized: () => {
+                    isOpenCvReady = true;
+                    isAiLoading = false;
+                    
+                    statusDiv.classList.replace('text-slate-400', 'text-emerald-600');
+                    statusDiv.classList.replace('bg-slate-100', 'bg-emerald-50');
+                    statusIcon.classList.replace('fa-spinner', 'fa-check-circle');
+                    statusIcon.classList.remove('fa-spin');
+                    statusText.innerText = 'AI READY';
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'AI Scanner Aktif!',
+                        text: 'Sekarang Anda bisa menggunakan fitur Auto-Scan.',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        customClass: { popup: 'rounded-3xl' }
+                    });
+                }
+            };
+
+            script.onerror = () => {
+                isAiLoading = false;
+                statusDiv.classList.replace('text-slate-400', 'text-red-600');
+                statusDiv.classList.replace('bg-slate-100', 'bg-red-50');
+                statusIcon.classList.replace('fa-spinner', 'fa-exclamation-circle');
                 statusIcon.classList.remove('fa-spin');
-                statusText.innerText = 'AI READY';
-                
-                console.log('OpenCV.js is ready.');
-            }
-        };
+                statusText.innerText = 'GAGAL MEMUAT AI';
+                Swal.fire('Error', 'Gagal mengunduh library AI. Periksa koneksi internet Anda.', 'error');
+            };
+
+            document.head.appendChild(script);
+        }
+
+        // OpenCV Ready Hook (Dihapus karena sudah pindah ke loadAI)
 
         // Auth Logic
         async function checkAuth() {
