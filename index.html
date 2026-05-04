@@ -945,27 +945,42 @@
             }).join('');
         }
 
-        function toggleModal() {
+        function toggleModal(isEdit = false) {
             const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modalTitle');
+            
             if (modal.classList.contains('hidden')) {
-                document.getElementById('accountForm').reset();
-                document.getElementById('editOriginalKode').value = '';
+                if (!isEdit) {
+                    document.getElementById('accountForm').reset();
+                    document.getElementById('editOriginalKode').value = '';
+                    if (modalTitle) modalTitle.innerText = 'Tambah Akun Baru';
+                } else {
+                    if (modalTitle) modalTitle.innerText = 'Edit Data Akun';
+                }
                 modal.classList.replace('hidden', 'flex');
-            } else modal.classList.replace('flex', 'hidden');
+            } else {
+                modal.classList.replace('flex', 'hidden');
+            }
         }
 
         function handleEditAccount(index) {
             const acc = accounts[index];
             const form = document.getElementById('accountForm');
-            form.elements["Kode Akun"].value = acc["Kode Akun"];
-            form.elements["Gmail"].value = acc.Gmail;
-            form.elements["Password Gmail"].value = acc["Password Gmail"];
-            form.elements["Password ML"].value = acc["Password ML"];
-            form.elements["Harga Beli"].value = acc["Harga Beli"];
-            form.elements["Harga Jual"].value = acc["Harga Jual"];
-            form.elements["Keterangan"].value = acc.Keterangan;
+            
+            // Mengisi form dengan data lama
+            form.elements["Kode Akun"].value = acc["Kode Akun"] || '';
+            form.elements["Gmail"].value = acc.Gmail || '';
+            form.elements["Password Gmail"].value = acc["Password Gmail"] || '';
+            form.elements["Password ML"].value = acc["Password ML"] || '';
+            form.elements["Harga Beli"].value = acc["Harga Beli"] || 0;
+            form.elements["Harga Jual"].value = acc["Harga Jual"] || 0;
+            form.elements["Keterangan"].value = acc.Keterangan || 'Ready';
+            
+            // Menyimpan kode asli untuk proses update di backend
             document.getElementById('editOriginalKode').value = acc["Kode Akun"];
-            toggleModal();
+            
+            // Buka modal dengan mode edit
+            toggleModal(true);
         }
 
         document.getElementById('accountForm').addEventListener('submit', async (e) => {
@@ -977,7 +992,26 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (res.ok) { toggleModal(); fetchAccounts(); fetchStats(); }
+            if (res.ok) { 
+                toggleModal(); 
+                fetchAccounts(); 
+                fetchStats();
+                Swal.fire({
+                    icon: 'success',
+                    title: orig ? 'Data Diperbarui!' : 'Data Ditambahkan!',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            } else {
+                const errData = await res.json();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: errData.message || 'Terjadi kesalahan saat menyimpan data',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            }
         });
 
         async function toggleStatus(k, s) {
