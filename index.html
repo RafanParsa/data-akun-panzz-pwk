@@ -11,6 +11,8 @@
     <!-- Cropper.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <!-- OpenCV.js for AI Scanning -->
+    <script async src="https://docs.opencv.org/4.5.4/opencv.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -28,6 +30,16 @@
         }
         .cropper-container {
             max-height: 500px !important;
+        }
+        #detectedSkinsGrid canvas {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s;
+        }
+        #detectedSkinsGrid canvas:hover {
+            transform: scale(1.05);
+            cursor: pointer;
         }
     </style>
 </head>
@@ -196,13 +208,13 @@
                     <!-- Quick Actions -->
                     <div class="bg-blue-600 p-8 rounded-3xl shadow-lg shadow-blue-200 text-white relative overflow-hidden">
                         <div class="relative z-10">
-                            <h4 class="text-xl font-bold mb-2">Potong Gambar?</h4>
-                            <p class="text-blue-100 text-sm mb-6">Gunakan fitur Skin Cropper untuk memotong screenshot skin ML dengan cepat untuk desain jualan Anda.</p>
+                            <h4 class="text-xl font-bold mb-2">Auto Scan Skin?</h4>
+                            <p class="text-blue-100 text-sm mb-6">Gunakan fitur AI Skin Scanner untuk memotong otomatis semua kartu skin dari satu screenshot koleksi.</p>
                             <button onclick="switchSection('cropper')" class="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all">
-                                Buka Skin Cropper
+                                Buka AI Scanner
                             </button>
                         </div>
-                        <i class="fas fa-crop-alt absolute -bottom-4 -right-4 text-8xl text-blue-500 opacity-50 transform -rotate-12"></i>
+                        <i class="fas fa-magic absolute -bottom-4 -right-4 text-8xl text-blue-500 opacity-50 transform -rotate-12"></i>
                     </div>
                 </div>
             </section>
@@ -281,21 +293,45 @@
 
             <!-- Cropper Section -->
             <section id="cropperSection" class="section space-y-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-800">Skin Cropper</h2>
-                    <p class="text-slate-500">Potong screenshot skin ML dengan rasio pas untuk design jualan.</p>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">AI Skin Scanner</h2>
+                        <p class="text-slate-500">Gunakan AI untuk mendeteksi dan memotong semua kartu skin secara otomatis.</p>
+                    </div>
+                    <div id="scannerStatus" class="hidden flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                        <i class="fas fa-check-circle"></i> AI READY
+                    </div>
                 </div>
 
                 <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                    <div id="dropZone" class="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center hover:border-blue-400 transition-all cursor-pointer">
+                    <div id="dropZone" class="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center hover:border-blue-400 transition-all cursor-pointer group">
                         <input type="file" id="imageInput" accept="image/*" class="hidden">
-                        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
-                            <i class="fas fa-cloud-upload-alt text-2xl"></i>
+                        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-magic text-2xl"></i>
                         </div>
-                        <p class="text-slate-600 font-medium">Klik atau drop screenshot di sini</p>
-                        <p class="text-slate-400 text-sm mt-1">Format: JPG, PNG, WEBP</p>
+                        <p class="text-slate-600 font-bold">Upload Screenshot Koleksi Skin</p>
+                        <p class="text-slate-400 text-sm mt-1">AI akan memindai dan memotong otomatis setiap kartu skin</p>
                     </div>
 
+                    <!-- Scan Results Area -->
+                    <div id="scanResults" class="hidden space-y-8">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-slate-800"><span id="detectedCount">0</span> Skin Terdeteksi</h4>
+                            <div class="flex gap-2">
+                                <button onclick="resetScanner()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition">
+                                    Reset
+                                </button>
+                                <button onclick="downloadAllDetected()" class="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                                    Download Semua
+                                </button>
+                            </div>
+                        </div>
+                        <div id="detectedSkinsGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            <!-- Detected skin canvases will be injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Cropper Area (Fallback) -->
                     <div id="cropperArea" class="hidden space-y-6">
                         <div class="rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
                             <img id="imageToCrop" class="max-w-full">
@@ -306,9 +342,6 @@
                             </button>
                             <button onclick="rotateImage(90)" class="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
                                 <i class="fas fa-redo"></i>
-                            </button>
-                            <button onclick="resetCropper()" class="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
-                                Reset
                             </button>
                             <button onclick="cropAndDownload()" class="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
                                 Potong & Download
@@ -337,7 +370,7 @@
                         </div>
                         <div class="col-span-2 md:col-span-1">
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Keterangan</label>
-                            <select name="Keterangan" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')">
+                            <select name="Keterangan" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')">
                                 <option value="Ready">Ready</option>
                                 <option value="Sold">Sold</option>
                             </select>
@@ -388,6 +421,16 @@
         let inventoryChart = null;
         let priceChart = null;
         let cropper = null;
+        let isOpenCvReady = false;
+
+        // OpenCV Ready Hook
+        var cv = {
+            onRuntimeInitialized: () => {
+                isOpenCvReady = true;
+                document.getElementById('scannerStatus').classList.remove('hidden');
+                console.log('OpenCV.js is ready.');
+            }
+        };
 
         // Auth Logic
         async function checkAuth() {
@@ -418,34 +461,21 @@
         }
 
         function switchSection(sectionId) {
-            // Update UI
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.getElementById(sectionId + 'Section').classList.add('active');
             
-            // Update Sidebar
             document.querySelectorAll('.sidebar-link').forEach(link => {
-                if (link.dataset.section === sectionId) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
-                }
+                if (link.dataset.section === sectionId) link.classList.add('active');
+                else link.classList.remove('active');
             });
 
-            // Handle data fetching
-            if (sectionId === 'dashboard') {
-                fetchStats();
-            } else if (sectionId === 'accounts') {
-                fetchAccounts();
-            } else if (sectionId === 'stats') {
-                fetchStats();
-            }
+            if (sectionId === 'dashboard') fetchStats();
+            else if (sectionId === 'accounts') fetchAccounts();
+            else if (sectionId === 'stats') fetchStats();
 
-            // Close sidebar on mobile after selection
             if (window.innerWidth < 1024) {
                 const sidebar = document.getElementById('sidebar');
-                if (!sidebar.classList.contains('-translate-x-full')) {
-                    toggleSidebar();
-                }
+                if (!sidebar.classList.contains('-translate-x-full')) toggleSidebar();
             }
         }
 
@@ -458,70 +488,41 @@
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-
                 if (response.ok) {
                     showMainContent();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Selamat Datang!',
-                        text: 'Berhasil masuk ke dashboard.',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        customClass: { popup: 'rounded-3xl' }
-                    });
+                    Swal.fire({ icon: 'success', title: 'Selamat Datang!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } });
                 } else {
                     const data = await response.json();
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Login Gagal',
-                        text: data.message,
-                        customClass: { popup: 'rounded-3xl' }
-                    });
+                    Swal.fire({ icon: 'error', title: 'Login Gagal', text: data.message, customClass: { popup: 'rounded-3xl' } });
                 }
             } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Kesalahan',
-                    text: 'Terjadi kesalahan koneksi ke server',
-                    customClass: { popup: 'rounded-3xl' }
-                });
+                Swal.fire({ icon: 'error', title: 'Kesalahan', text: 'Koneksi gagal', customClass: { popup: 'rounded-3xl' } });
             }
         });
 
         async function handleLogout() {
             await fetch('/api/logout', { method: 'POST' });
             showLoginPage();
-            Swal.fire({
-                icon: 'info',
-                title: 'Logged Out',
-                text: 'Anda telah keluar dari sistem.',
-                timer: 1500,
-                showConfirmButton: false,
-                customClass: { popup: 'rounded-3xl' }
-            });
         }
 
-        // Stats Logic
+        // Stats & AI Logic
         async function fetchStats() {
             try {
                 const response = await fetch('/api/stats');
                 if (response.status === 401) return showLoginPage();
                 const stats = await response.json();
                 
-                // Update Dashboard Cards
                 document.getElementById('statTotalAccounts').innerText = stats.totalAccounts;
                 document.getElementById('statReadyAccounts').innerText = stats.readyAccounts;
                 document.getElementById('statSoldAccounts').innerText = stats.soldAccounts;
                 document.getElementById('statTotalProfit').innerText = 'Rp' + stats.totalProfit.toLocaleString('id-ID');
                 
-                // Update Stats Page
                 const inv = document.getElementById('statTotalInvestment');
                 const rev = document.getElementById('statPotentialRevenue');
                 const roi = document.getElementById('statROI');
@@ -535,84 +536,33 @@
 
                 updateCharts(stats);
                 generateAIRecommendations(stats);
-            } catch (error) {
-                console.error('Error fetching stats:', error);
-            }
+            } catch (error) {}
         }
 
         function generateAIRecommendations(stats) {
             const container = document.getElementById('aiRecommendations');
             const recs = [];
-
             const roi = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100) : 0;
             const readyRatio = stats.totalAccounts > 0 ? (stats.readyAccounts / stats.totalAccounts * 100) : 0;
 
-            // ECONOMIC REASONING 1: Inventory Health
             if (readyRatio > 70) {
-                recs.push({
-                    icon: 'fa-exclamation-triangle',
-                    color: 'text-orange-500',
-                    bg: 'bg-orange-50',
-                    title: 'Analisis Likuiditas',
-                    desc: `Terlalu banyak modal tertahan (${readyRatio.toFixed(0)}% stok ready). Secara ekonomi, perputaran uang Anda melambat. Fokuslah menjual stok yang ada sebelum menambah pengeluaran baru.`
-                });
+                recs.push({ icon: 'fa-exclamation-triangle', color: 'text-orange-500', bg: 'bg-orange-50', title: 'Analisis Likuiditas', desc: `Terlalu banyak modal tertahan (${readyRatio.toFixed(0)}% stok ready). Secara ekonomi, perputaran uang Anda melambat.` });
             } else if (readyRatio < 20 && stats.totalAccounts > 5) {
-                recs.push({
-                    icon: 'fa-chart-line',
-                    color: 'text-emerald-500',
-                    bg: 'bg-emerald-50',
-                    title: 'Momentum Penjualan',
-                    desc: `Tingkat penjualan Anda sangat tinggi! Ini adalah sinyal ekspansi. Pasar sedang merespon positif harga Anda. Naikkan sedikit harga jual pada stok baru untuk optimasi profit.`
-                });
+                recs.push({ icon: 'fa-chart-line', color: 'text-emerald-500', bg: 'bg-emerald-50', title: 'Momentum Penjualan', desc: `Tingkat penjualan Anda sangat tinggi! Pasar sedang merespon positif harga Anda.` });
             }
 
-            // ECONOMIC REASONING 2: Profitability & Risk
             if (roi > 40) {
-                recs.push({
-                    icon: 'fa-gem',
-                    color: 'text-indigo-500',
-                    bg: 'bg-indigo-50',
-                    title: 'Efisiensi Tinggi',
-                    desc: `ROI sebesar ${roi.toFixed(1)}% menunjukkan pemilihan aset yang sangat cerdas. Anda memiliki 'mata' yang baik untuk akun undervalued. Pertahankan kriteria pemilihan akun seperti ini.`
-                });
+                recs.push({ icon: 'fa-gem', color: 'text-indigo-500', bg: 'bg-indigo-50', title: 'Efisiensi Tinggi', desc: `ROI sebesar ${roi.toFixed(1)}% menunjukkan pemilihan aset yang sangat cerdas.` });
             } else if (stats.totalInvestment > 2000000 && roi < 10) {
-                recs.push({
-                    icon: 'fa-shield-alt',
-                    color: 'text-red-500',
-                    bg: 'bg-red-50',
-                    title: 'Evaluasi Risiko',
-                    desc: `Pengeluaran besar terdeteksi (Rp${stats.totalInvestment.toLocaleString()}) tapi profit real masih rendah. Ada risiko 'Dead Stock'. Coba turunkan harga pada akun yang sudah ready lebih dari 2 minggu.`
-                });
+                recs.push({ icon: 'fa-shield-alt', color: 'text-red-500', bg: 'bg-red-50', title: 'Evaluasi Risiko', desc: `Pengeluaran besar terdeteksi tapi profit real masih rendah. Coba turunkan harga pada stok lama.` });
             }
 
-            // ECONOMIC REASONING 3: Market Strategy
-            if (stats.potentialRevenue > 1000000) {
-                recs.push({
-                    icon: 'fa-lightbulb',
-                    color: 'text-blue-500',
-                    bg: 'bg-blue-50',
-                    title: 'Potensi Cashflow',
-                    desc: `Ada potensi uang masuk sebesar Rp${stats.potentialRevenue.toLocaleString()}. Jika terjual semua, Anda bisa melakukan 'Compounding' (re-investasi profit) untuk membeli akun tier yang lebih tinggi (Collector/Legend) yang marginnya lebih tebal.`
-                });
-            }
-
-            // Default if not enough data
-            if (recs.length < 2) {
-                recs.push({
-                    icon: 'fa-robot',
-                    color: 'text-slate-500',
-                    bg: 'bg-slate-50',
-                    title: 'Mode Observasi',
-                    desc: "AI sedang mengumpulkan data transaksi. Terus update status akun (Ready/Sold) agar AI bisa memberikan analisis ekonomi yang lebih akurat."
-                });
-            }
+            if (recs.length < 2) recs.push({ icon: 'fa-robot', color: 'text-slate-500', bg: 'bg-slate-50', title: 'Mode Observasi', desc: "AI sedang mengumpulkan data transaksi untuk analisis ekonomi yang lebih akurat." });
 
             container.innerHTML = recs.slice(0, 2).map(r => `
                 <div class="recommendation-card p-6 ${r.bg} rounded-3xl border border-slate-100 flex flex-col gap-3">
                     <div class="flex items-center gap-3 ${r.color}">
-                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                            <i class="fas ${r.icon} text-lg"></i>
-                        </div>
+                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><i class="fas ${r.icon} text-lg"></i></div>
                         <span class="font-bold text-sm uppercase tracking-wider">${r.title}</span>
                     </div>
                     <p class="text-sm text-slate-600 leading-relaxed font-medium">${r.desc}</p>
@@ -621,220 +571,195 @@
         }
 
         function updateCharts(stats) {
-            // Inventory Chart
             const ctxInv = document.getElementById('inventoryChart').getContext('2d');
             if (inventoryChart) inventoryChart.destroy();
             inventoryChart = new Chart(ctxInv, {
                 type: 'doughnut',
-                data: {
-                    labels: ['Ready Stock', 'Terjual'],
-                    datasets: [{
-                        data: [stats.readyAccounts, stats.soldAccounts],
-                        backgroundColor: ['#3b82f6', '#f97316'],
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                    cutout: '70%'
-                }
+                data: { labels: ['Ready', 'Terjual'], datasets: [{ data: [stats.readyAccounts, stats.soldAccounts], backgroundColor: ['#3b82f6', '#f97316'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
             });
 
-            // Price/Profit Chart
             const ctxPrice = document.getElementById('priceChart')?.getContext('2d');
             if (ctxPrice) {
                 if (priceChart) priceChart.destroy();
                 priceChart = new Chart(ctxPrice, {
                     type: 'bar',
-                    data: {
-                        labels: ['Pengeluaran', 'Potensi Jual', 'Profit Saat Ini'],
-                        datasets: [{
-                            label: 'Rupiah',
-                            data: [stats.totalInvestment, stats.potentialRevenue + stats.totalProfit, stats.totalProfit],
-                            backgroundColor: ['#64748b', '#3b82f6', '#10b981'],
-                            borderRadius: 12
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: (value) => 'Rp' + (value / 1000) + 'k'
-                                }
-                            }
-                        }
-                    }
+                    data: { labels: ['Pengeluaran', 'Potensi Jual', 'Profit'], datasets: [{ data: [stats.totalInvestment, stats.potentialRevenue + stats.totalProfit, stats.totalProfit], backgroundColor: ['#64748b', '#3b82f6', '#10b981'], borderRadius: 12 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Rp' + (v / 1000) + 'k' } } } }
                 });
             }
         }
 
-        // Accounts Logic
-        async function fetchAccounts() {
-            try {
-                const response = await fetch('/api/accounts');
-                if (response.status === 401) return showLoginPage();
-                accounts = await response.json();
-                renderAccounts();
-            } catch (error) {
-                console.error('Error fetching accounts:', error);
-            }
-        }
-
-        function renderAccounts(data = accounts) {
-            const list = document.getElementById('accountsList');
-            if (data.length === 0) {
-                list.innerHTML = `
-                    <div class="col-span-full text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
-                        <div class="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-folder-open text-slate-300 text-2xl"></i>
-                        </div>
-                        <p class="text-slate-500 font-medium">Tidak ada data ditemukan.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = data.map((acc, index) => {
-                const isReady = acc.Keterangan === 'Ready';
-                const potentialProfit = (acc["Harga Jual"] || 0) - (acc["Harga Beli"] || 0);
-                return `
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-md transition-all group">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                            ${acc["Kode Akun"]}
-                        </div>
-                        <span class="px-3 py-1 text-xs font-bold rounded-full ${isReady ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
-                            ${acc.Keterangan}
-                        </span>
-                    </div>
-                    <h3 class="font-bold text-slate-800 truncate mb-4 text-lg">${acc.Gmail || '-'}</h3>
-                    <div class="space-y-3 mb-6">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-slate-400">Password Gmail</span>
-                            <span class="font-semibold text-slate-700">${acc["Password Gmail"] || '-'}</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-slate-400">Password ML</span>
-                            <span class="font-semibold text-slate-700">${acc["Password ML"] || '-'}</span>
-                        </div>
-                        <div class="pt-3 border-t border-slate-50 space-y-2">
-                            <div class="flex justify-between items-end">
-                                <div>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase">Harga Beli</p>
-                                    <p class="font-bold text-slate-600 text-sm">Rp${(acc["Harga Beli"] || 0).toLocaleString('id-ID')}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-[10px] text-blue-400 font-bold uppercase">Harga Jual</p>
-                                    <p class="font-bold text-blue-600 text-base">Rp${(acc["Harga Jual"] || 0).toLocaleString('id-ID')}</p>
-                                </div>
-                            </div>
-                            <div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center border border-slate-100">
-                                <span class="text-[10px] text-slate-500 font-bold uppercase">Potensi Profit</span>
-                                <span class="text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}">
-                                    ${potentialProfit >= 0 ? '+' : ''}Rp${potentialProfit.toLocaleString('id-ID')}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-4 gap-2">
-                        <button onclick="handleEditAccount(${index})" class="col-span-1 p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all"><i class="fas fa-edit"></i></button>
-                        <button onclick="toggleStatus('${acc["Kode Akun"]}', '${acc.Keterangan}')" class="col-span-1 p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-sync-alt"></i></button>
-                        <button onclick="copyAccountInfo('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-green-50 hover:text-green-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-copy"></i></button>
-                        <button onclick="deleteAccount('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </div>
-            `;}).join('');
-        }
-
-        // Cropper Logic
-        const dropZone = document.getElementById('dropZone');
+        // Scanner & Cropper Logic
         const imageInput = document.getElementById('imageInput');
-        const imageToCrop = document.getElementById('imageToCrop');
-        const cropperArea = document.getElementById('cropperArea');
+        const dropZone = document.getElementById('dropZone');
+        const scanResults = document.getElementById('scanResults');
+        const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
 
         dropZone.onclick = () => imageInput.click();
-        
         imageInput.onchange = (e) => {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    initCropper(event.target.result);
-                };
-                reader.readAsDataURL(file);
-            }
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (isOpenCvReady) {
+                    processAutoScan(event.target.result);
+                } else {
+                    // Fallback to manual if OpenCV not ready
+                    initManualCropper(event.target.result);
+                }
+            };
+            reader.readAsDataURL(file);
         };
 
-        function initCropper(src) {
-            imageToCrop.src = src;
-            dropZone.classList.add('hidden');
-            cropperArea.classList.remove('hidden');
-            
-            if (cropper) cropper.destroy();
-            
-            cropper = new Cropper(imageToCrop, {
-                aspectRatio: NaN, // Bebas, atau set 2/3 untuk skin ML
-                viewMode: 1,
-                autoCropArea: 0.8,
+        function processAutoScan(imageSrc) {
+            const img = new Image();
+            img.onload = () => {
+                Swal.fire({ title: 'AI Memindai Gambar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                const src = cv.imread(img);
+                const gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                
+                const blur = new cv.Mat();
+                cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+                
+                const threshold = new cv.Mat();
+                cv.adaptiveThreshold(blur, threshold, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+                
+                const contours = new cv.Hierarchy();
+                const hierarchy = new cv.Hierarchy();
+                cv.findContours(threshold, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                
+                detectedSkinsGrid.innerHTML = '';
+                let count = 0;
+
+                for (let i = 0; i < contours.size(); ++i) {
+                    const cnt = contours.get(i);
+                    const rect = cv.boundingRect(cnt);
+                    const aspectRatio = rect.width / rect.height;
+                    
+                    // Filter based on typical MLBB skin card ratio (approx 2:3)
+                    if (aspectRatio > 0.5 && aspectRatio < 0.8 && rect.width > img.width * 0.05 && rect.height > img.height * 0.05) {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = rect.width;
+                        canvas.height = rect.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                        
+                        const container = document.createElement('div');
+                        container.className = 'relative group';
+                        container.appendChild(canvas);
+                        
+                        const btn = document.createElement('button');
+                        btn.innerHTML = '<i class="fas fa-download"></i>';
+                        btn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg';
+                        btn.onclick = () => downloadCanvas(canvas);
+                        container.appendChild(btn);
+                        
+                        detectedSkinsGrid.appendChild(container);
+                        count++;
+                    }
+                }
+
+                src.delete(); gray.delete(); blur.delete(); threshold.delete(); contours.delete(); hierarchy.delete();
+                
+                Swal.close();
+                if (count > 0) {
+                    document.getElementById('detectedCount').innerText = count;
+                    dropZone.classList.add('hidden');
+                    scanResults.classList.remove('hidden');
+                } else {
+                    Swal.fire({ icon: 'info', title: 'AI Tidak Menemukan Skin', text: 'Mencoba mode potong manual...', timer: 2000 });
+                    initManualCropper(imageSrc);
+                }
+            };
+            img.src = imageSrc;
+        }
+
+        function downloadCanvas(canvas) {
+            const link = document.createElement('a');
+            link.download = `Skin_ML_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function downloadAllDetected() {
+            const canvases = detectedSkinsGrid.querySelectorAll('canvas');
+            canvases.forEach((c, i) => {
+                setTimeout(() => downloadCanvas(c), i * 300);
             });
         }
 
-        function rotateImage(deg) {
-            if (cropper) cropper.rotate(deg);
+        function resetScanner() {
+            scanResults.classList.add('hidden');
+            document.getElementById('cropperArea').classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            imageInput.value = '';
         }
 
-        function resetCropper() {
-            if (cropper) cropper.reset();
+        function initManualCropper(src) {
+            const img = document.getElementById('imageToCrop');
+            img.src = src;
+            dropZone.classList.add('hidden');
+            document.getElementById('cropperArea').classList.remove('hidden');
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(img, { viewMode: 1 });
         }
 
         function cropAndDownload() {
             if (!cropper) return;
-            const canvas = cropper.getCroppedCanvas({
-                maxWidth: 1080,
-                maxHeight: 1920,
-            });
-            
-            canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Skin_ML_PanzzStore_${Date.now()}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'Gambar skin telah dipotong dan didownload.',
-                    timer: 1500,
-                    showConfirmButton: false,
-                    customClass: { popup: 'rounded-3xl' }
-                });
-            }, 'image/png');
+            const canvas = cropper.getCroppedCanvas();
+            downloadCanvas(canvas);
+            Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1000, showConfirmButton: false });
         }
 
+        function rotateImage(deg) { if (cropper) cropper.rotate(deg); }
+
         // Common Logic
+        async function fetchAccounts() {
+            const res = await fetch('/api/accounts');
+            accounts = await res.json();
+            renderAccounts();
+        }
+
+        function renderAccounts(data = accounts) {
+            const list = document.getElementById('accountsList');
+            if (data.length === 0) { list.innerHTML = '<p class="col-span-full text-center py-20 text-slate-400">Data kosong.</p>'; return; }
+            list.innerHTML = data.map((acc, index) => {
+                const profit = (acc["Harga Jual"] || 0) - (acc["Harga Beli"] || 0);
+                return `
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-md transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase">${acc["Kode Akun"]}</div>
+                        <span class="px-3 py-1 text-xs font-bold rounded-full ${acc.Keterangan==='Ready'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'}">${acc.Keterangan}</span>
+                    </div>
+                    <h3 class="font-bold text-slate-800 truncate mb-4 text-lg">${acc.Gmail || '-'}</h3>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between text-sm"><span class="text-slate-400">Pass Gmail</span><span class="font-semibold text-slate-700">${acc["Password Gmail"] || '-'}</span></div>
+                        <div class="flex justify-between text-sm"><span class="text-slate-400">Pass ML</span><span class="font-semibold text-slate-700">${acc["Password ML"] || '-'}</span></div>
+                        <div class="pt-3 border-t border-slate-50 space-y-2">
+                            <div class="flex justify-between text-xs"><span>Beli: Rp${(acc["Harga Beli"]||0).toLocaleString()}</span><span class="text-blue-600 font-bold">Jual: Rp${(acc["Harga Jual"]||0).toLocaleString()}</span></div>
+                            <div class="bg-slate-50 p-2 rounded-xl flex justify-between text-xs"><span>Potensi Profit</span><span class="font-bold ${profit>=0?'text-emerald-600':'text-red-600'}">Rp${profit.toLocaleString()}</span></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="handleEditAccount(${index})" class="p-2 bg-slate-50 rounded-xl hover:bg-slate-100"><i class="fas fa-edit"></i></button>
+                        <button onclick="toggleStatus('${acc["Kode Akun"]}', '${acc.Keterangan}')" class="p-2 bg-slate-50 rounded-xl hover:bg-blue-50"><i class="fas fa-sync-alt"></i></button>
+                        <button onclick="copyAccountInfo('${acc["Kode Akun"]}')" class="p-2 bg-slate-50 rounded-xl hover:bg-green-50"><i class="fas fa-copy"></i></button>
+                        <button onclick="deleteAccount('${acc["Kode Akun"]}')" class="p-2 bg-slate-50 rounded-xl hover:bg-red-50"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
         function toggleModal() {
             const modal = document.getElementById('modal');
             if (modal.classList.contains('hidden')) {
                 document.getElementById('accountForm').reset();
-                document.getElementById('modalTitle').innerText = 'Tambah Akun Baru';
                 document.getElementById('editOriginalKode').value = '';
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            } else {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
+                modal.classList.replace('hidden', 'flex');
+            } else modal.classList.replace('flex', 'hidden');
         }
 
         function handleEditAccount(index) {
@@ -848,77 +773,43 @@
             form.elements["Harga Jual"].value = acc["Harga Jual"];
             form.elements["Keterangan"].value = acc.Keterangan;
             document.getElementById('editOriginalKode').value = acc["Kode Akun"];
-            document.getElementById('modalTitle').innerText = 'Edit Data Akun';
-            document.getElementById('modal').classList.remove('hidden');
-            document.getElementById('modal').classList.add('flex');
+            toggleModal();
         }
 
         document.getElementById('accountForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            data["Harga Beli"] = Number(data["Harga Beli"]);
-            data["Harga Jual"] = Number(data["Harga Jual"]);
-            const originalKode = document.getElementById('editOriginalKode').value;
-            const isEdit = originalKode !== '';
-            try {
-                const url = isEdit ? `/api/accounts/${encodeURIComponent(originalKode)}` : '/api/accounts';
-                const method = isEdit ? 'PUT' : 'POST';
-                const response = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                if (response.ok) {
-                    toggleModal();
-                    fetchAccounts();
-                    fetchStats();
-                    Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } });
-                } else {
-                    const err = await response.json();
-                    Swal.fire('Gagal', err.message, 'error');
-                }
-            } catch (e) { Swal.fire('Error', 'Kesalahan koneksi', 'error'); }
+            const data = Object.fromEntries(new FormData(e.target));
+            const orig = document.getElementById('editOriginalKode').value;
+            const res = await fetch(orig ? `/api/accounts/${encodeURIComponent(orig)}` : '/api/accounts', {
+                method: orig ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) { toggleModal(); fetchAccounts(); fetchStats(); }
         });
 
-        async function toggleStatus(kode, currentStatus) {
-            const newStatus = currentStatus === 'Ready' ? 'Sold' : 'Ready';
-            await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ Keterangan: newStatus })
-            });
-            fetchAccounts();
-            fetchStats();
+        async function toggleStatus(k, s) {
+            await fetch(`/api/accounts/${encodeURIComponent(k)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Keterangan: s==='Ready'?'Sold':'Ready' }) });
+            fetchAccounts(); fetchStats();
         }
 
-        async function deleteAccount(kode) {
-            const res = await Swal.fire({ title: 'Hapus?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya', customClass: { popup: 'rounded-3xl' } });
-            if (res.isConfirmed) {
-                await fetch(`/api/accounts/${encodeURIComponent(kode)}`, { method: 'DELETE' });
-                fetchAccounts();
-                fetchStats();
+        async function deleteAccount(k) {
+            if ((await Swal.fire({ title: 'Hapus?', showCancelButton: true })).isConfirmed) {
+                await fetch(`/api/accounts/${encodeURIComponent(k)}`, { method: 'DELETE' });
+                fetchAccounts(); fetchStats();
             }
         }
 
-        function filterAccounts() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            renderAccounts(accounts.filter(a => (a["Kode Akun"]||"").toLowerCase().includes(q) || (a.Gmail||"").toLowerCase().includes(q)));
-        }
-
-        function copyAccountInfo(kode) {
-            const acc = accounts.find(a => a["Kode Akun"] === kode);
-            if (!acc) return;
-            const txt = `*INFO AKUN - PANZZ STORE*\nKode: ${acc["Kode Akun"]}\nEmail: ${acc.Gmail}\nPass: ${acc["Password Gmail"]}\nML: ${acc["Password ML"]}`;
-            navigator.clipboard.writeText(txt).then(() => Swal.fire({ icon: 'success', title: 'Copied!', timer: 1000, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }));
+        function copyAccountInfo(k) {
+            const acc = accounts.find(a => a["Kode Akun"] === k);
+            navigator.clipboard.writeText(`*INFO AKUN*\nKode: ${acc["Kode Akun"]}\nEmail: ${acc.Gmail}\nPass: ${acc["Password Gmail"]}`).then(() => Swal.fire({ icon: 'success', title: 'Copied!', timer: 800, showConfirmButton: false }));
         }
 
         async function downloadExcel() {
             const res = await fetch('/api/export-excel');
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = `PanzzStore_${new Date().toISOString().split('T')[0]}.xlsx`;
             a.click();
         }
