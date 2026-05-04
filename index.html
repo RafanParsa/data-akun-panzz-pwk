@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -22,6 +25,9 @@
         }
         .recommendation-card:hover {
             transform: translateY(-2px);
+        }
+        .cropper-container {
+            max-height: 500px !important;
         }
     </style>
 </head>
@@ -83,6 +89,9 @@
                 <button onclick="switchSection('stats')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all font-medium" data-section="stats">
                     <i class="fas fa-chart-line w-5"></i> Statistik
                 </button>
+                <button onclick="switchSection('cropper')" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50 transition-all font-medium" data-section="cropper">
+                    <i class="fas fa-crop-alt w-5"></i> Skin Cropper
+                </button>
             </nav>
 
             <div class="p-4 border-t border-slate-100">
@@ -119,7 +128,7 @@
                                 <i class="fas fa-box text-xl"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-slate-500 font-medium">Total Akun</p>
+                                <p class="text-sm text-slate-500 font-medium">Stok Akun</p>
                                 <h3 class="text-2xl font-bold text-slate-800" id="statTotalAccounts">0</h3>
                             </div>
                         </div>
@@ -161,16 +170,18 @@
 
                 <!-- AI Recommendations Section -->
                 <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600">
-                            <i class="fas fa-robot"></i>
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h4 class="text-xl font-bold text-slate-800">Analisis Ekonomi AI</h4>
                         </div>
-                        <h4 class="text-xl font-bold text-slate-800">Rekomendasi AI Panzz Store</h4>
+                        <span class="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full uppercase tracking-widest">Heuristic Engine v2.0</span>
                     </div>
-                    <div id="aiRecommendations" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
+                    <div id="aiRecommendations" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-32"></div>
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-32"></div>
                     </div>
                 </div>
 
@@ -185,13 +196,13 @@
                     <!-- Quick Actions -->
                     <div class="bg-blue-600 p-8 rounded-3xl shadow-lg shadow-blue-200 text-white relative overflow-hidden">
                         <div class="relative z-10">
-                            <h4 class="text-xl font-bold mb-2">Butuh Bantuan?</h4>
-                            <p class="text-blue-100 text-sm mb-6">Kelola stok akun dengan mudah dan pantau keuntungan Anda secara real-time.</p>
-                            <button onclick="switchSection('accounts')" class="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all">
-                                Kelola Stok Sekarang
+                            <h4 class="text-xl font-bold mb-2">Potong Gambar?</h4>
+                            <p class="text-blue-100 text-sm mb-6">Gunakan fitur Skin Cropper untuk memotong screenshot skin ML dengan cepat untuk desain jualan Anda.</p>
+                            <button onclick="switchSection('cropper')" class="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all">
+                                Buka Skin Cropper
                             </button>
                         </div>
-                        <i class="fas fa-rocket absolute -bottom-4 -right-4 text-8xl text-blue-500 opacity-50 transform -rotate-12"></i>
+                        <i class="fas fa-crop-alt absolute -bottom-4 -right-4 text-8xl text-blue-500 opacity-50 transform -rotate-12"></i>
                     </div>
                 </div>
             </section>
@@ -267,6 +278,45 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Cropper Section -->
+            <section id="cropperSection" class="section space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Skin Cropper</h2>
+                    <p class="text-slate-500">Potong screenshot skin ML dengan rasio pas untuk design jualan.</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+                    <div id="dropZone" class="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center hover:border-blue-400 transition-all cursor-pointer">
+                        <input type="file" id="imageInput" accept="image/*" class="hidden">
+                        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                            <i class="fas fa-cloud-upload-alt text-2xl"></i>
+                        </div>
+                        <p class="text-slate-600 font-medium">Klik atau drop screenshot di sini</p>
+                        <p class="text-slate-400 text-sm mt-1">Format: JPG, PNG, WEBP</p>
+                    </div>
+
+                    <div id="cropperArea" class="hidden space-y-6">
+                        <div class="rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
+                            <img id="imageToCrop" class="max-w-full">
+                        </div>
+                        <div class="flex flex-wrap gap-4 justify-center">
+                            <button onclick="rotateImage(-90)" class="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button onclick="rotateImage(90)" class="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button onclick="resetCropper()" class="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
+                                Reset
+                            </button>
+                            <button onclick="cropAndDownload()" class="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                                Potong & Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <!-- Modal Form -->
@@ -337,6 +387,7 @@
         let accounts = [];
         let inventoryChart = null;
         let priceChart = null;
+        let cropper = null;
 
         // Auth Logic
         async function checkAuth() {
@@ -386,12 +437,15 @@
             } else if (sectionId === 'accounts') {
                 fetchAccounts();
             } else if (sectionId === 'stats') {
-                fetchStats(); // Stats page uses the same data but displays it differently
+                fetchStats();
             }
 
             // Close sidebar on mobile after selection
             if (window.innerWidth < 1024) {
-                toggleSidebar();
+                const sidebar = document.getElementById('sidebar');
+                if (!sidebar.classList.contains('-translate-x-full')) {
+                    toggleSidebar();
+                }
             }
         }
 
@@ -490,80 +544,84 @@
             const container = document.getElementById('aiRecommendations');
             const recs = [];
 
-            // Low Inventory Recommendation
-            if (stats.readyAccounts < 3) {
+            const roi = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100) : 0;
+            const readyRatio = stats.totalAccounts > 0 ? (stats.readyAccounts / stats.totalAccounts * 100) : 0;
+
+            // ECONOMIC REASONING 1: Inventory Health
+            if (readyRatio > 70) {
                 recs.push({
-                    icon: 'fa-plus-circle',
+                    icon: 'fa-exclamation-triangle',
                     color: 'text-orange-500',
                     bg: 'bg-orange-50',
-                    title: 'Tambah Stok Segera',
-                    desc: 'Stok akun Anda menipis. Segera cari akun baru untuk mempertahankan ritme penjualan.'
+                    title: 'Analisis Likuiditas',
+                    desc: `Terlalu banyak modal tertahan (${readyRatio.toFixed(0)}% stok ready). Secara ekonomi, perputaran uang Anda melambat. Fokuslah menjual stok yang ada sebelum menambah pengeluaran baru.`
                 });
-            }
-
-            // High Profit Strategy
-            const margin = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100) : 0;
-            if (margin > 30) {
+            } else if (readyRatio < 20 && stats.totalAccounts > 5) {
                 recs.push({
-                    icon: 'fa-rocket',
+                    icon: 'fa-chart-line',
                     color: 'text-emerald-500',
                     bg: 'bg-emerald-50',
-                    title: 'Strategi Harga Optimal',
-                    desc: 'Margin profit Anda sangat bagus (>30%). Strategi harga saat ini sangat efektif, pertahankan!'
-                });
-            } else {
-                recs.push({
-                    icon: 'fa-lightbulb',
-                    color: 'text-blue-500',
-                    bg: 'bg-blue-50',
-                    title: 'Optimasi Profit',
-                    desc: 'Coba negosiasi harga beli lebih rendah atau naikkan harga jual sedikit untuk meningkatkan margin.'
+                    title: 'Momentum Penjualan',
+                    desc: `Tingkat penjualan Anda sangat tinggi! Ini adalah sinyal ekspansi. Pasar sedang merespon positif harga Anda. Naikkan sedikit harga jual pada stok baru untuk optimasi profit.`
                 });
             }
 
-            // Marketing Recommendation
-            if (stats.readyAccounts > 5) {
+            // ECONOMIC REASONING 2: Profitability & Risk
+            if (roi > 40) {
                 recs.push({
-                    icon: 'fa-bullhorn',
+                    icon: 'fa-gem',
                     color: 'text-indigo-500',
                     bg: 'bg-indigo-50',
-                    title: 'Promosi Agresif',
-                    desc: 'Stok melimpah! Waktunya promosi di grup WhatsApp/Facebook untuk mempercepat perputaran modal.'
+                    title: 'Efisiensi Tinggi',
+                    desc: `ROI sebesar ${roi.toFixed(1)}% menunjukkan pemilihan aset yang sangat cerdas. Anda memiliki 'mata' yang baik untuk akun undervalued. Pertahankan kriteria pemilihan akun seperti ini.`
                 });
-            }
-
-            // Risk Management
-            if (stats.totalInvestment > 5000000) {
+            } else if (stats.totalInvestment > 2000000 && roi < 10) {
                 recs.push({
                     icon: 'fa-shield-alt',
                     color: 'text-red-500',
                     bg: 'bg-red-50',
-                    title: 'Manajemen Risiko',
-                    desc: 'Investasi besar terdeteksi. Pastikan keamanan akun terjaga untuk menghindari kerugian.'
-                });
-            } else if (recs.length < 3) {
-                recs.push({
-                    icon: 'fa-check-circle',
-                    color: 'text-green-500',
-                    bg: 'bg-green-50',
-                    title: 'Kesehatan Toko Baik',
-                    desc: 'Performa toko Anda stabil. Terus pantau pasar untuk peluang akun yang sedang viral.'
+                    title: 'Evaluasi Risiko',
+                    desc: `Pengeluaran besar terdeteksi (Rp${stats.totalInvestment.toLocaleString()}) tapi profit real masih rendah. Ada risiko 'Dead Stock'. Coba turunkan harga pada akun yang sudah ready lebih dari 2 minggu.`
                 });
             }
 
-            container.innerHTML = recs.slice(0, 3).map(r => `
-                <div class="recommendation-card p-4 ${r.bg} rounded-2xl border border-slate-100 flex flex-col gap-2">
-                    <div class="flex items-center gap-2 ${r.color}">
-                        <i class="fas ${r.icon}"></i>
-                        <span class="font-bold text-sm uppercase">${r.title}</span>
+            // ECONOMIC REASONING 3: Market Strategy
+            if (stats.potentialRevenue > 1000000) {
+                recs.push({
+                    icon: 'fa-lightbulb',
+                    color: 'text-blue-500',
+                    bg: 'bg-blue-50',
+                    title: 'Potensi Cashflow',
+                    desc: `Ada potensi uang masuk sebesar Rp${stats.potentialRevenue.toLocaleString()}. Jika terjual semua, Anda bisa melakukan 'Compounding' (re-investasi profit) untuk membeli akun tier yang lebih tinggi (Collector/Legend) yang marginnya lebih tebal.`
+                });
+            }
+
+            // Default if not enough data
+            if (recs.length < 2) {
+                recs.push({
+                    icon: 'fa-robot',
+                    color: 'text-slate-500',
+                    bg: 'bg-slate-50',
+                    title: 'Mode Observasi',
+                    desc: "AI sedang mengumpulkan data transaksi. Terus update status akun (Ready/Sold) agar AI bisa memberikan analisis ekonomi yang lebih akurat."
+                });
+            }
+
+            container.innerHTML = recs.slice(0, 2).map(r => `
+                <div class="recommendation-card p-6 ${r.bg} rounded-3xl border border-slate-100 flex flex-col gap-3">
+                    <div class="flex items-center gap-3 ${r.color}">
+                        <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                            <i class="fas ${r.icon} text-lg"></i>
+                        </div>
+                        <span class="font-bold text-sm uppercase tracking-wider">${r.title}</span>
                     </div>
-                    <p class="text-xs text-slate-600 leading-relaxed">${r.desc}</p>
+                    <p class="text-sm text-slate-600 leading-relaxed font-medium">${r.desc}</p>
                 </div>
             `).join('');
         }
 
         function updateCharts(stats) {
-            // Inventory Chart (Doughnut)
+            // Inventory Chart
             const ctxInv = document.getElementById('inventoryChart').getContext('2d');
             if (inventoryChart) inventoryChart.destroy();
             inventoryChart = new Chart(ctxInv, {
@@ -580,14 +638,12 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    },
+                    plugins: { legend: { position: 'bottom' } },
                     cutout: '70%'
                 }
             });
 
-            // Price/Profit Chart (Simplified bar)
+            // Price/Profit Chart
             const ctxPrice = document.getElementById('priceChart')?.getContext('2d');
             if (ctxPrice) {
                 if (priceChart) priceChart.destroy();
@@ -610,9 +666,7 @@
                             y: {
                                 beginAtZero: true,
                                 ticks: {
-                                    callback: function(value) {
-                                        return 'Rp' + (value / 1000) + 'k';
-                                    }
+                                    callback: (value) => 'Rp' + (value / 1000) + 'k'
                                 }
                             }
                         }
@@ -660,9 +714,7 @@
                             ${acc.Keterangan}
                         </span>
                     </div>
-                    
                     <h3 class="font-bold text-slate-800 truncate mb-4 text-lg">${acc.Gmail || '-'}</h3>
-                    
                     <div class="space-y-3 mb-6">
                         <div class="flex justify-between text-sm">
                             <span class="text-slate-400">Password Gmail</span>
@@ -684,47 +736,96 @@
                                 </div>
                             </div>
                             <div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center border border-slate-100">
-                                <span class="text-[10px] text-slate-500 font-bold uppercase">Potensi Pendapatan</span>
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">Potensi Profit</span>
                                 <span class="text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}">
                                     ${potentialProfit >= 0 ? '+' : ''}Rp${potentialProfit.toLocaleString('id-ID')}
                                 </span>
                             </div>
                         </div>
                     </div>
-
                     <div class="grid grid-cols-4 gap-2">
-                        <button onclick="handleEditAccount(${index})" class="col-span-1 p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button onclick="toggleStatus('${acc["Kode Akun"]}', '${acc.Keterangan}')" class="col-span-1 p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-600 rounded-xl transition-all" title="Ubah Status">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button onclick="copyAccountInfo('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-green-50 hover:text-green-600 text-slate-600 rounded-xl transition-all" title="Salin Info">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        <button onclick="deleteAccount('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-xl transition-all" title="Hapus">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <button onclick="handleEditAccount(${index})" class="col-span-1 p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl transition-all"><i class="fas fa-edit"></i></button>
+                        <button onclick="toggleStatus('${acc["Kode Akun"]}', '${acc.Keterangan}')" class="col-span-1 p-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-sync-alt"></i></button>
+                        <button onclick="copyAccountInfo('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-green-50 hover:text-green-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-copy"></i></button>
+                        <button onclick="deleteAccount('${acc["Kode Akun"]}')" class="col-span-1 p-2 bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-xl transition-all"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
             `;}).join('');
         }
 
-        function filterAccounts() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = accounts.filter(acc => 
-                (acc["Kode Akun"] || "").toLowerCase().includes(query) || 
-                (acc.Gmail || "").toLowerCase().includes(query)
-            );
-            renderAccounts(filtered);
+        // Cropper Logic
+        const dropZone = document.getElementById('dropZone');
+        const imageInput = document.getElementById('imageInput');
+        const imageToCrop = document.getElementById('imageToCrop');
+        const cropperArea = document.getElementById('cropperArea');
+
+        dropZone.onclick = () => imageInput.click();
+        
+        imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    initCropper(event.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        function initCropper(src) {
+            imageToCrop.src = src;
+            dropZone.classList.add('hidden');
+            cropperArea.classList.remove('hidden');
+            
+            if (cropper) cropper.destroy();
+            
+            cropper = new Cropper(imageToCrop, {
+                aspectRatio: NaN, // Bebas, atau set 2/3 untuk skin ML
+                viewMode: 1,
+                autoCropArea: 0.8,
+            });
         }
 
-        // Form Logic
+        function rotateImage(deg) {
+            if (cropper) cropper.rotate(deg);
+        }
+
+        function resetCropper() {
+            if (cropper) cropper.reset();
+        }
+
+        function cropAndDownload() {
+            if (!cropper) return;
+            const canvas = cropper.getCroppedCanvas({
+                maxWidth: 1080,
+                maxHeight: 1920,
+            });
+            
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Skin_ML_PanzzStore_${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: 'Gambar skin telah dipotong dan didownload.',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            }, 'image/png');
+        }
+
+        // Common Logic
         function toggleModal() {
             const modal = document.getElementById('modal');
-            const isHidden = modal.classList.contains('hidden');
-            
-            if (isHidden) {
+            if (modal.classList.contains('hidden')) {
                 document.getElementById('accountForm').reset();
                 document.getElementById('modalTitle').innerText = 'Tambah Akun Baru';
                 document.getElementById('editOriginalKode').value = '';
@@ -739,7 +840,6 @@
         function handleEditAccount(index) {
             const acc = accounts[index];
             const form = document.getElementById('accountForm');
-            
             form.elements["Kode Akun"].value = acc["Kode Akun"];
             form.elements["Gmail"].value = acc.Gmail;
             form.elements["Password Gmail"].value = acc["Password Gmail"];
@@ -747,13 +847,10 @@
             form.elements["Harga Beli"].value = acc["Harga Beli"];
             form.elements["Harga Jual"].value = acc["Harga Jual"];
             form.elements["Keterangan"].value = acc.Keterangan;
-            
             document.getElementById('editOriginalKode').value = acc["Kode Akun"];
             document.getElementById('modalTitle').innerText = 'Edit Data Akun';
-            
-            const modal = document.getElementById('modal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
         }
 
         document.getElementById('accountForm').addEventListener('submit', async (e) => {
@@ -762,139 +859,70 @@
             const data = Object.fromEntries(formData.entries());
             data["Harga Beli"] = Number(data["Harga Beli"]);
             data["Harga Jual"] = Number(data["Harga Jual"]);
-
             const originalKode = document.getElementById('editOriginalKode').value;
             const isEdit = originalKode !== '';
-
             try {
                 const url = isEdit ? `/api/accounts/${encodeURIComponent(originalKode)}` : '/api/accounts';
                 const method = isEdit ? 'PUT' : 'POST';
-
                 const response = await fetch(url, {
-                    method: method,
+                    method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-
                 if (response.ok) {
                     toggleModal();
                     fetchAccounts();
                     fetchStats();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: isEdit ? 'Data telah diperbarui.' : 'Data baru telah ditambahkan.',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        customClass: { popup: 'rounded-3xl' }
-                    });
+                    Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } });
                 } else {
-                    const errorData = await response.json();
-                    Swal.fire('Gagal', errorData.message, 'error');
+                    const err = await response.json();
+                    Swal.fire('Gagal', err.message, 'error');
                 }
-            } catch (error) {
-                Swal.fire('Error', 'Terjadi kesalahan koneksi', 'error');
-            }
+            } catch (e) { Swal.fire('Error', 'Kesalahan koneksi', 'error'); }
         });
 
         async function toggleStatus(kode, currentStatus) {
             const newStatus = currentStatus === 'Ready' ? 'Sold' : 'Ready';
-            try {
-                const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Keterangan: newStatus })
-                });
-                if (response.ok) {
-                    fetchAccounts();
-                    fetchStats();
-                }
-            } catch (error) {
-                console.error('Error toggling status:', error);
-            }
+            await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Keterangan: newStatus })
+            });
+            fetchAccounts();
+            fetchStats();
         }
 
         async function deleteAccount(kode) {
-            const result = await Swal.fire({
-                title: 'Hapus Akun?',
-                text: "Data yang dihapus tidak dapat dikembalikan!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'Ya, Hapus',
-                cancelButtonText: 'Batal',
-                customClass: { popup: 'rounded-3xl' }
-            });
-
-            if (result.isConfirmed) {
-                try {
-                    const response = await fetch(`/api/accounts/${encodeURIComponent(kode)}`, {
-                        method: 'DELETE'
-                    });
-                    if (response.ok) {
-                        fetchAccounts();
-                        fetchStats();
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Terhapus!',
-                            timer: 1000,
-                            showConfirmButton: false,
-                            customClass: { popup: 'rounded-3xl' }
-                        });
-                    }
-                } catch (error) {
-                    Swal.fire('Error', 'Gagal menghapus data', 'error');
-                }
+            const res = await Swal.fire({ title: 'Hapus?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya', customClass: { popup: 'rounded-3xl' } });
+            if (res.isConfirmed) {
+                await fetch(`/api/accounts/${encodeURIComponent(kode)}`, { method: 'DELETE' });
+                fetchAccounts();
+                fetchStats();
             }
         }
 
-        async function downloadExcel() {
-            try {
-                Swal.fire({
-                    title: 'Menyiapkan Excel...',
-                    didOpen: () => { Swal.showLoading(); }
-                });
-
-                const response = await fetch('/api/export-excel');
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `PanzzStore_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                Swal.close();
-            } catch (error) {
-                Swal.fire('Error', 'Gagal export data', 'error');
-            }
+        function filterAccounts() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            renderAccounts(accounts.filter(a => (a["Kode Akun"]||"").toLowerCase().includes(q) || (a.Gmail||"").toLowerCase().includes(q)));
         }
 
         function copyAccountInfo(kode) {
-            const acc = accounts.find(a => String(a["Kode Akun"]).trim() === String(kode).trim());
+            const acc = accounts.find(a => a["Kode Akun"] === kode);
             if (!acc) return;
-
-            const text = `*INFORMASI AKUN - PANZZ STORE*\n` +
-                         `----------------------------\n` +
-                         `*Kode:* ${acc["Kode Akun"]}\n` +
-                         `*Email:* ${acc.Gmail}\n` +
-                         `*Pass Gmail:* ${acc["Password Gmail"]}\n` +
-                         `*Pass ML:* ${acc["Password ML"]}\n` +
-                         `----------------------------\n` +
-                         `*Notes:* Segera amankan akun & ganti password!`;
-
-            navigator.clipboard.writeText(text).then(() => {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Copied!',
-                    timer: 1000,
-                    showConfirmButton: false,
-                    customClass: { popup: 'rounded-3xl' }
-                });
-            });
+            const txt = `*INFO AKUN - PANZZ STORE*\nKode: ${acc["Kode Akun"]}\nEmail: ${acc.Gmail}\nPass: ${acc["Password Gmail"]}\nML: ${acc["Password ML"]}`;
+            navigator.clipboard.writeText(txt).then(() => Swal.fire({ icon: 'success', title: 'Copied!', timer: 1000, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } }));
         }
 
-        // Initialize
+        async function downloadExcel() {
+            const res = await fetch('/api/export-excel');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `PanzzStore_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+        }
+
         checkAuth();
     </script>
 </body>
