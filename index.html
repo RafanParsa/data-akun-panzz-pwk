@@ -261,28 +261,33 @@
                     <p class="text-slate-500">Data mendalam performa toko Anda.</p>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                        <h4 class="font-bold text-slate-800 mb-6">Distribusi Stok</h4>
+                        <div class="h-80">
+                            <canvas id="inventoryChart"></canvas>
+                        </div>
+                    </div>
                     <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                         <h4 class="font-bold text-slate-800 mb-6">Distribusi Harga</h4>
                         <div class="h-80">
                             <canvas id="priceChart"></canvas>
                         </div>
                     </div>
-                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
-                        <div class="space-y-6">
-                            <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
-                                <span class="text-slate-600 font-medium">Total Pengeluaran</span>
-                                <span class="font-bold text-slate-800" id="statTotalInvestment">Rp0</span>
-                            </div>
-                            <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl text-blue-700">
-                                <span class="font-medium">Potensi Pendapatan</span>
-                                <span class="font-bold" id="statPotentialRevenue">Rp0</span>
-                            </div>
-                            <div class="flex justify-between items-center p-4 bg-emerald-50 rounded-2xl text-emerald-700 border border-emerald-100">
-                                <span class="font-medium">Margin Keuntungan (ROI)</span>
-                                <span class="font-bold" id="statROI">0%</span>
-                            </div>
-                        </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                        <p class="text-slate-500 text-sm mb-1 font-medium">Total Pengeluaran</p>
+                        <h3 class="text-2xl font-bold text-slate-800" id="statTotalInvestment">Rp0</h3>
+                    </div>
+                    <div class="p-6 bg-blue-50 rounded-3xl border border-blue-100">
+                        <p class="text-blue-600 text-sm mb-1 font-medium">Potensi Pendapatan</p>
+                        <h3 class="text-2xl font-bold text-blue-700" id="statPotentialRevenue">Rp0</h3>
+                    </div>
+                    <div class="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                        <p class="text-emerald-600 text-sm mb-1 font-medium">Margin Keuntungan (ROI)</p>
+                        <h3 class="text-2xl font-bold text-emerald-700" id="statROI">0%</h3>
                     </div>
                 </div>
             </section>
@@ -413,11 +418,6 @@
     </div>
 
     <script>
-        let accounts = [];
-        let inventoryChart = null;
-        let priceChart = null;
-        let cropper = null;
-
         let accounts = [];
         let inventoryChart = null;
         let priceChart = null;
