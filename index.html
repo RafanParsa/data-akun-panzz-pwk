@@ -200,7 +200,7 @@
                     <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                         <h4 class="font-bold text-slate-800 mb-6">Status Inventori</h4>
                         <div class="h-64">
-                            <canvas id="inventoryChart"></canvas>
+                            <canvas id="inventoryChartDashboard"></canvas>
                         </div>
                     </div>
                     <!-- Quick Actions -->
@@ -267,7 +267,7 @@
                     <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                         <h4 class="font-bold text-slate-800 mb-6">Distribusi Stok</h4>
                         <div class="h-80">
-                            <canvas id="inventoryChart"></canvas>
+                            <canvas id="inventoryChartStats"></canvas>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
@@ -421,7 +421,8 @@
 
     <script>
         let accounts = [];
-        let inventoryChart = null;
+        let inventoryChartDashboard = null;
+        let inventoryChartStats = null;
         let priceChart = null;
         let cropper = null;
         let isOpenCVReady = false;
@@ -815,15 +816,14 @@
         }
 
         function updateCharts(stats) {
-            const canvasInv = document.getElementById('inventoryChart');
-            if (canvasInv) {
-                const ctxInv = canvasInv.getContext('2d');
-                if (inventoryChart) inventoryChart.destroy();
-                
-                // Cek jika data kosong
-                const hasData = stats.readyAccounts > 0 || stats.soldAccounts > 0;
-                
-                inventoryChart = new Chart(ctxInv, {
+            const hasData = stats.readyAccounts > 0 || stats.soldAccounts > 0;
+
+            // 1. Dashboard Inventory Chart
+            const canvasDash = document.getElementById('inventoryChartDashboard');
+            if (canvasDash) {
+                const ctxDash = canvasDash.getContext('2d');
+                if (inventoryChartDashboard) inventoryChartDashboard.destroy();
+                inventoryChartDashboard = new Chart(ctxDash, {
                     type: 'doughnut',
                     data: { 
                         labels: hasData ? ['Ready', 'Terjual'] : ['Belum Ada Data'], 
@@ -836,26 +836,41 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false, 
-                        plugins: { 
-                            legend: { position: 'bottom' },
-                            tooltip: { enabled: hasData }
-                        }, 
+                        plugins: { legend: { position: 'bottom' }, tooltip: { enabled: hasData } }, 
                         cutout: '70%' 
                     }
                 });
             }
 
+            // 2. Stats Inventory Chart
+            const canvasStats = document.getElementById('inventoryChartStats');
+            if (canvasStats) {
+                const ctxStats = canvasStats.getContext('2d');
+                if (inventoryChartStats) inventoryChartStats.destroy();
+                inventoryChartStats = new Chart(ctxStats, {
+                    type: 'doughnut',
+                    data: { 
+                        labels: hasData ? ['Ready', 'Terjual'] : ['Belum Ada Data'], 
+                        datasets: [{ 
+                            data: hasData ? [stats.readyAccounts, stats.soldAccounts] : [1], 
+                            backgroundColor: hasData ? ['#3b82f6', '#f97316'] : ['#f1f5f9'], 
+                            borderWidth: 0 
+                        }] 
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { position: 'bottom' }, tooltip: { enabled: hasData } }, 
+                        cutout: '70%' 
+                    }
+                });
+            }
+
+            // 3. Price Chart (Stats)
             const canvasPrice = document.getElementById('priceChart');
             if (canvasPrice) {
                 const ctxPrice = canvasPrice.getContext('2d');
                 if (priceChart) priceChart.destroy();
-                
-                // Perhitungan yang lebih logis untuk Distribusi Harga
-                // 1. Modal (Total Investasi)
-                // 2. Omzet (Uang yang sudah masuk + Potensi uang masuk)
-                // 3. Profit (Keuntungan bersih dari yang sudah terjual)
-                const totalOmzet = (stats.totalProfit + stats.totalInvestment); // Estimasi kasar total perputaran uang
-
                 priceChart = new Chart(ctxPrice, {
                     type: 'bar',
                     data: { 
