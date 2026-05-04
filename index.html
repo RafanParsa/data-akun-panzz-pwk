@@ -422,6 +422,10 @@
 
         // Smart Skin Detection Algorithm (OpenCV-free)
         function processAutoScan(imageSrc) {
+            const scanResults = document.getElementById('scanResults');
+            const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
+            const dropZone = document.getElementById('dropZone');
+            
             const img = new Image();
             img.onload = () => {
                 Swal.fire({ 
@@ -439,15 +443,10 @@
                 ctx.drawImage(img, 0, 0);
 
                 // Grid Detection Logic kustom untuk UI Mobile Legends
-                // MLBB UI biasanya memiliki grid tetap di tengah layar
-                // Kita akan memindai area potensial (pusat)
-                
-                const skins = [];
                 const gridRows = 2;
                 const gridCols = 5;
                 
                 // Koordinat relatif UI Mobile Legends (Koleksi Skin)
-                // Area grid biasanya dimulai dari 20% lebar dan 25% tinggi
                 const startX = img.width * 0.23;
                 const startY = img.height * 0.26;
                 const gridWidth = img.width * 0.68;
@@ -464,7 +463,6 @@
                         const x = startX + (col * cellW);
                         const y = startY + (row * cellH);
                         
-                        // Margin kecil untuk membuang frame grid
                         const padding = 5;
                         const finalW = cellW - (padding * 2);
                         const finalH = cellH - (padding * 2);
@@ -476,12 +474,10 @@
                         
                         skinCtx.drawImage(img, x + padding, y + padding, finalW, finalH, 0, 0, finalW, finalH);
                         
-                        // Cek apakah area tersebut berisi konten (bukan background kosong)
-                        // Menggunakan rata-rata warna sederhana
                         const pixelData = skinCtx.getImageData(finalW/2, finalH/2, 1, 1).data;
                         const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
                         
-                        if (brightness > 20) { // Jika tidak terlalu gelap (berarti ada konten)
+                        if (brightness > 20) {
                             const container = document.createElement('div');
                             container.className = 'relative group';
                             container.appendChild(skinCanvas);
@@ -517,16 +513,25 @@
             img.src = imageSrc;
         }
 
-        // Event listener untuk input gambar
-        imageInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                processAutoScan(event.target.result);
-            };
-            reader.readAsDataURL(file);
-        };
+        // Inisialisasi Event Listeners
+        window.addEventListener('load', () => {
+            const imageInput = document.getElementById('imageInput');
+            const dropZone = document.getElementById('dropZone');
+            
+            if (dropZone && imageInput) {
+                dropZone.onclick = () => imageInput.click();
+                
+                imageInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        processAutoScan(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                };
+            }
+        });
 
         function downloadCanvas(canvas) {
             const link = document.createElement('a');
@@ -536,6 +541,7 @@
         }
 
         function downloadAllDetected() {
+            const detectedSkinsGrid = document.getElementById('detectedSkinsGrid');
             const canvases = detectedSkinsGrid.querySelectorAll('canvas');
             canvases.forEach((c, i) => {
                 setTimeout(() => downloadCanvas(c), i * 300);
@@ -543,16 +549,16 @@
         }
 
         function resetScanner() {
-            scanResults.classList.add('hidden');
+            document.getElementById('scanResults').classList.add('hidden');
             document.getElementById('cropperArea').classList.add('hidden');
-            dropZone.classList.remove('hidden');
-            imageInput.value = '';
+            document.getElementById('dropZone').classList.remove('hidden');
+            document.getElementById('imageInput').value = '';
         }
 
         function initManualCropper(src) {
             const img = document.getElementById('imageToCrop');
             img.src = src;
-            dropZone.classList.add('hidden');
+            document.getElementById('dropZone').classList.add('hidden');
             document.getElementById('cropperArea').classList.remove('hidden');
             if (cropper) cropper.destroy();
             cropper = new Cropper(img, { viewMode: 1 });
