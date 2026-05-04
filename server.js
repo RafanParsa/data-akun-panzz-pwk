@@ -4,6 +4,7 @@ const XLSX = require('xlsx');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const path = require('path');
 require('dotenv').config();
 
@@ -70,11 +71,23 @@ const Account = mongoose.models.Account || mongoose.model('Account', accountSche
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// Session Configuration dengan MongoDB Store (Memperbaiki issue "tiba-tiba keluar")
 app.use(session({
     secret: process.env.SESSION_SECRET || 'panzz-store-secret-key',
     resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
+    saveUninitialized: false, // Diubah jadi false untuk efisiensi
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 24 * 60 * 60, // 1 Hari
+        autoRemove: 'native'
+    }),
+    cookie: { 
+        maxAge: 24 * 60 * 60 * 1000, 
+        secure: false, // Set true jika menggunakan HTTPS
+        httpOnly: true,
+        sameSite: 'lax'
+    }
 }));
 
 // Static files (This is important for Vercel)

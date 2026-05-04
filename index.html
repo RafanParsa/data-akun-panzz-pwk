@@ -17,6 +17,12 @@
         }
         .section { display: none; }
         .section.active { display: block; }
+        .recommendation-card {
+            transition: all 0.3s ease;
+        }
+        .recommendation-card:hover {
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -153,6 +159,21 @@
                     </div>
                 </div>
 
+                <!-- AI Recommendations Section -->
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-800">Rekomendasi AI Panzz Store</h4>
+                    </div>
+                    <div id="aiRecommendations" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-24"></div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <!-- Chart Preview -->
                     <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
@@ -231,7 +252,7 @@
                     <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-center">
                         <div class="space-y-6">
                             <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
-                                <span class="text-slate-600 font-medium">Total Investasi</span>
+                                <span class="text-slate-600 font-medium">Total Pengeluaran</span>
                                 <span class="font-bold text-slate-800" id="statTotalInvestment">Rp0</span>
                             </div>
                             <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl text-blue-700">
@@ -459,9 +480,86 @@
                 }
 
                 updateCharts(stats);
+                generateAIRecommendations(stats);
             } catch (error) {
                 console.error('Error fetching stats:', error);
             }
+        }
+
+        function generateAIRecommendations(stats) {
+            const container = document.getElementById('aiRecommendations');
+            const recs = [];
+
+            // Low Inventory Recommendation
+            if (stats.readyAccounts < 3) {
+                recs.push({
+                    icon: 'fa-plus-circle',
+                    color: 'text-orange-500',
+                    bg: 'bg-orange-50',
+                    title: 'Tambah Stok Segera',
+                    desc: 'Stok akun Anda menipis. Segera cari akun baru untuk mempertahankan ritme penjualan.'
+                });
+            }
+
+            // High Profit Strategy
+            const margin = stats.totalInvestment > 0 ? (stats.totalProfit / stats.totalInvestment * 100) : 0;
+            if (margin > 30) {
+                recs.push({
+                    icon: 'fa-rocket',
+                    color: 'text-emerald-500',
+                    bg: 'bg-emerald-50',
+                    title: 'Strategi Harga Optimal',
+                    desc: 'Margin profit Anda sangat bagus (>30%). Strategi harga saat ini sangat efektif, pertahankan!'
+                });
+            } else {
+                recs.push({
+                    icon: 'fa-lightbulb',
+                    color: 'text-blue-500',
+                    bg: 'bg-blue-50',
+                    title: 'Optimasi Profit',
+                    desc: 'Coba negosiasi harga beli lebih rendah atau naikkan harga jual sedikit untuk meningkatkan margin.'
+                });
+            }
+
+            // Marketing Recommendation
+            if (stats.readyAccounts > 5) {
+                recs.push({
+                    icon: 'fa-bullhorn',
+                    color: 'text-indigo-500',
+                    bg: 'bg-indigo-50',
+                    title: 'Promosi Agresif',
+                    desc: 'Stok melimpah! Waktunya promosi di grup WhatsApp/Facebook untuk mempercepat perputaran modal.'
+                });
+            }
+
+            // Risk Management
+            if (stats.totalInvestment > 5000000) {
+                recs.push({
+                    icon: 'fa-shield-alt',
+                    color: 'text-red-500',
+                    bg: 'bg-red-50',
+                    title: 'Manajemen Risiko',
+                    desc: 'Investasi besar terdeteksi. Pastikan keamanan akun terjaga untuk menghindari kerugian.'
+                });
+            } else if (recs.length < 3) {
+                recs.push({
+                    icon: 'fa-check-circle',
+                    color: 'text-green-500',
+                    bg: 'bg-green-50',
+                    title: 'Kesehatan Toko Baik',
+                    desc: 'Performa toko Anda stabil. Terus pantau pasar untuk peluang akun yang sedang viral.'
+                });
+            }
+
+            container.innerHTML = recs.slice(0, 3).map(r => `
+                <div class="recommendation-card p-4 ${r.bg} rounded-2xl border border-slate-100 flex flex-col gap-2">
+                    <div class="flex items-center gap-2 ${r.color}">
+                        <i class="fas ${r.icon}"></i>
+                        <span class="font-bold text-sm uppercase">${r.title}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed">${r.desc}</p>
+                </div>
+            `).join('');
         }
 
         function updateCharts(stats) {
@@ -496,7 +594,7 @@
                 priceChart = new Chart(ctxPrice, {
                     type: 'bar',
                     data: {
-                        labels: ['Investasi', 'Potensi Jual', 'Profit Saat Ini'],
+                        labels: ['Pengeluaran', 'Potensi Jual', 'Profit Saat Ini'],
                         datasets: [{
                             label: 'Rupiah',
                             data: [stats.totalInvestment, stats.potentialRevenue + stats.totalProfit, stats.totalProfit],
@@ -551,6 +649,7 @@
 
             list.innerHTML = data.map((acc, index) => {
                 const isReady = acc.Keterangan === 'Ready';
+                const potentialProfit = (acc["Harga Jual"] || 0) - (acc["Harga Beli"] || 0);
                 return `
                 <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 hover:shadow-md transition-all group">
                     <div class="flex justify-between items-start mb-4">
@@ -573,14 +672,22 @@
                             <span class="text-slate-400">Password ML</span>
                             <span class="font-semibold text-slate-700">${acc["Password ML"] || '-'}</span>
                         </div>
-                        <div class="pt-3 border-t border-slate-50 flex justify-between items-end">
-                            <div>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase">Harga Beli</p>
-                                <p class="font-bold text-slate-600">Rp${(acc["Harga Beli"] || 0).toLocaleString('id-ID')}</p>
+                        <div class="pt-3 border-t border-slate-50 space-y-2">
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">Harga Beli</p>
+                                    <p class="font-bold text-slate-600 text-sm">Rp${(acc["Harga Beli"] || 0).toLocaleString('id-ID')}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-blue-400 font-bold uppercase">Harga Jual</p>
+                                    <p class="font-bold text-blue-600 text-base">Rp${(acc["Harga Jual"] || 0).toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
-                            <div class="text-right">
-                                <p class="text-[10px] text-blue-400 font-bold uppercase">Harga Jual</p>
-                                <p class="font-bold text-blue-600 text-lg">Rp${(acc["Harga Jual"] || 0).toLocaleString('id-ID')}</p>
+                            <div class="bg-slate-50 p-2 rounded-xl flex justify-between items-center border border-slate-100">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">Potensi Pendapatan</span>
+                                <span class="text-sm font-bold ${potentialProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}">
+                                    ${potentialProfit >= 0 ? '+' : ''}Rp${potentialProfit.toLocaleString('id-ID')}
+                                </span>
                             </div>
                         </div>
                     </div>
